@@ -1,883 +1,761 @@
-<?php
-// Database connection
-$conn = new mysqli("localhost", "root", "", "ewaste_connect");
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-
-// Create collection_centers table
-$sql = "CREATE TABLE IF NOT EXISTS collection_centers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    address TEXT NOT NULL,
-    lat DECIMAL(10, 8) NOT NULL,
-    lon DECIMAL(11, 8) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    email VARCHAR(100) NOT NULL,
-    rating DECIMAL(2, 1) DEFAULT 0.0,
-    reviews INT DEFAULT 0,
-    hours VARCHAR(100) NOT NULL,
-    certifications VARCHAR(255),
-    website VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)";
-
-if ($conn->query($sql) === TRUE) {
-    echo "Table 'collection_centers' created successfully<br>";
-} else {
-    echo "Error creating table: " . $conn->error . "<br>";
-}
-
-// Create accepted_items table
-$sql = "CREATE TABLE IF NOT EXISTS accepted_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    center_id INT NOT NULL,
-    item_type VARCHAR(50) NOT NULL,
-    FOREIGN KEY (center_id) REFERENCES collection_centers(id)
-)";
-
-if ($conn->query($sql) === TRUE) {
-    echo "Table 'accepted_items' created successfully<br>";
-} else {
-    echo "Error creating table: " . $conn->error . "<br>";
-}
-
-// Insert sample data
-$centers = [
-    [
-        'name' => 'Green Tech Recyclers',
-        'address' => '123 Eco Avenue, Nyeri',
-        'lat' => -0.4239,
-        'lon' => 36.9535,
-        'phone' => '+254700111222',
-        'email' => 'info@greentech.co.ke',
-        'rating' => 4.5,
-        'reviews' => 24,
-        'hours' => 'Mon-Fri: 8AM-6PM, Sat: 9AM-4PM',
-        'certifications' => 'ISO 14001, R2 Certified',
-        'website' => 'www.greentech.co.ke',
-        'items' => ['phones', 'laptops', 'batteries']
-    ],
-    [
-        'name' => 'Nyeri E-Waste Solutions',
-        'address' => '45 River Road, Nyeri',
-        'lat' => -0.4280,
-        'lon' => 36.9520,
-        'phone' => '+254700333444',
-        'email' => 'contact@nyeriewaste.com',
-        'rating' => 4.2,
-        'reviews' => 18,
-        'hours' => 'Mon-Sat: 7AM-7PM',
-        'certifications' => 'NEMA Approved',
-        'website' => 'www.nyeriewaste.com',
-        'items' => ['appliances', 'computers', 'phones']
-    ]
-];
-
-foreach ($centers as $center) {
-    // Insert center
-    $sql = "INSERT INTO collection_centers (name, address, lat, lon, phone, email, rating, reviews, hours, certifications, website) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param(
-        "ssddssdiss",
-        $center['name'],
-        $center['address'],
-        $center['lat'],
-        $center['lon'],
-        $center['phone'],
-        $center['email'],
-        $center['rating'],
-        $center['reviews'],
-        $center['hours'],
-        $center['certifications'],
-        $center['website']
-    );
-
-    if ($stmt->execute()) {
-        $center_id = $conn->insert_id;
-        echo "Added center: " . $center['name'] . "<br>";
-
-        // Insert accepted items
-        foreach ($center['items'] as $item) {
-            $sql = "INSERT INTO accepted_items (center_id, item_type) VALUES (?, ?)";
-            $stmt = $conn->prepare($sql);
-            $stmt->bind_param("is", $center_id, $item);
-            $stmt->execute();
-        }
-    } else {
-        echo "Error adding center: " . $stmt->error . "<br>";
-    }
-}
-
-$conn->close();
-?>
-
-
-
-
-
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-Waste Connect - Sustainable Electronics Disposal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        /* Custom animations and styles */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes pulse {
-
-            0%,
-            100% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.05);
-            }
-        }
-
-        @keyframes slideInLeft {
-            from {
-                opacity: 0;
-                transform: translateX(-100%);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .fade-in-up {
-            animation: fadeInUp 0.6s ease-out;
-        }
-
-        .pulse-animation {
-            animation: pulse 2s infinite;
-        }
-
-        .slide-in-left {
-            animation: slideInLeft 0.3s ease-out;
-        }
-
-        .mobile-menu {
-            transition: transform 0.3s ease-in-out;
-            transform: translateX(-100%);
-        }
-
-        .mobile-menu.active {
-            transform: translateX(0);
-        }
-
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        .card-hover {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .card-hover:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-
-        .loading-spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #10b981;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .rating-stars {
-            color: #fbbf24;
-        }
-
-        .accepted-items {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-
-        .item-tag {
-            background: #e5f3ff;
-            color: #1e40af;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.375rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-
-        .filter-button {
-            transition: all 0.2s ease;
-        }
-
-        .filter-button.active {
-            background: #10b981;
-            color: white;
-        }
-
-        .progress-bar {
-            height: 4px;
-            background: #e5e7eb;
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #10b981, #059669);
-            border-radius: 2px;
-            transition: width 0.3s ease;
-        }
-    </style>
-</head>
-
-<body class="font-sans antialiased bg-gray-50">
-
-    <!-- Navigation -->
-    <nav class="bg-white shadow-lg sticky top-0 z-40">
-        <div class="container mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-recycle text-2xl text-green-600"></i>
-                    <a href="#" class="text-2xl font-bold text-gray-800">E-Waste Connect</a>
-                </div>
-
-                <div class="hidden md:flex space-x-6">
-                    <a href="#home"
-                        class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Home</a>
-                    <a href="#about"
-                        class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">About Us</a>
-                    <a href="#how-it-works"
-                        class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">How It
-                        Works</a>
-                    <a href="#faq"
-                        class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">FAQ</a>
-                    <a href="#contact"
-                        class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Contact</a>
-                </div>
-
-                <div class="md:hidden">
-                    <button id="mobileMenuButton" class="text-gray-600 hover:text-green-600 focus:outline-none">
-                        <i class="fas fa-bars text-xl"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Mobile Menu -->
-    <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 w-80 h-full bg-white shadow-2xl z-50 md:hidden">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-8">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-recycle text-xl text-green-600"></i>
-                    <span class="text-xl font-bold text-gray-800">E-Waste Connect</span>
-                </div>
-                <button id="closeMobileMenuButton" class="text-gray-600 hover:text-green-600 focus:outline-none">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <nav class="flex flex-col space-y-4">
-                <a href="#home"
-                    class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
-                    <i class="fas fa-home mr-3"></i>Home
-                </a>
-                <a href="#about"
-                    class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
-                    <i class="fas fa-info-circle mr-3"></i>About Us
-                </a>
-                <a href="#how-it-works"
-                    class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
-                    <i class="fas fa-cogs mr-3"></i>How It Works
-                </a>
-                <a href="#faq"
-                    class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
-                    <i class="fas fa-question-circle mr-3"></i>FAQ
-                </a>
-                <a href="#contact"
-                    class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block transition duration-200">
-                    <i class="fas fa-envelope mr-3"></i>Contact
-                </a>
-            </nav>
-        </div>
-    </div>
-
-    <!-- Hero Section -->
-    <section id="home" class="gradient-bg text-white py-20">
-        <div class="container mx-auto px-4 text-center">
-            <div class="max-w-4xl mx-auto fade-in-up">
-                <h1 class="text-5xl md:text-6xl font-bold mb-6">Dispose of E-Waste Responsibly</h1>
-                <p class="text-xl md:text-2xl mb-8 opacity-90">Find certified e-waste collection centers near you and
-                    help protect our environment</p>
-
-                <div class="flex flex-col md:flex-row items-center justify-center gap-4 mb-12">
-                    <div class="flex items-center space-x-2 text-lg">
-                        <i class="fas fa-shield-alt text-green-300"></i>
-                        <span>Certified Centers</span>
-                    </div>
-                    <div class="flex items-center space-x-2 text-lg">
-                        <i class="fas fa-leaf text-green-300"></i>
-                        <span>Eco-Friendly</span>
-                    </div>
-                    <div class="flex items-center space-x-2 text-lg">
-                        <i class="fas fa-clock text-green-300"></i>
-                        <span>24/7 Available</span>
-                    </div>
-                </div>
-
-                <button id="findCentersBtn"
-                    class="bg-white text-gray-800 hover:bg-gray-100 font-bold py-4 px-8 rounded-full text-xl shadow-lg transition duration-300 ease-in-out pulse-animation">
-                    <i class="fas fa-map-marker-alt mr-2"></i>
-                    Find Collection Centers Near Me
-                </button>
-            </div>
-        </div>
-    </section>
-
-    <!-- Progress Bar -->
-    <div id="progressContainer" class="progress-bar hidden">
-        <div id="progressBar" class="progress-fill" style="width: 0%"></div>
-    </div>
-
-    <!-- Search and Filter Section -->
-    <section class="py-12 bg-white">
-        <div class="container mx-auto px-4">
-            <div id="searchFilterSection" class="hidden fade-in-up">
-                <div class="max-w-4xl mx-auto">
-                    <div class="bg-gray-50 rounded-lg p-6 mb-8">
-                        <div class="flex flex-col md:flex-row gap-4 items-center">
-                            <div class="flex-1">
-                                <input type="text" id="searchInput" placeholder="Search by center name or location..."
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                            </div>
-                            <div class="flex gap-2">
-                                <select id="sortSelect"
-                                    class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                                    <option value="distance">Sort by Distance</option>
-                                    <option value="rating">Sort by Rating</option>
-                                    <option value="name">Sort by Name</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="mt-4">
-                            <p class="text-sm font-semibold text-gray-700 mb-2">Filter by accepted items:</p>
-                            <div class="flex flex-wrap gap-2">
-                                <button
-                                    class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
-                                    data-filter="all">All Items</button>
-                                <button
-                                    class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
-                                    data-filter="phones">Phones</button>
-                                <button
-                                    class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
-                                    data-filter="laptops">Laptops</button>
-                                <button
-                                    class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
-                                    data-filter="batteries">Batteries</button>
-                                <button
-                                    class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
-                                    data-filter="appliances">Appliances</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Results Section -->
-            <div id="collectionCentersList" class="hidden">
-                <div class="text-center mb-8">
-                    <h2 class="text-4xl font-bold text-gray-800 mb-4">Nearby Collection Centers</h2>
-                    <p id="resultsCount" class="text-gray-600"></p>
-                </div>
-
-                <div id="centersResults" class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div class="col-span-full flex justify-center items-center py-12">
-                        <div class="loading-spinner"></div>
-                        <span class="ml-3 text-gray-600">Finding centers near you...</span>
-                    </div>
-                </div>
-
-                <div id="errorMessages" class="text-center mt-8">
-                    <p id="locationError" class="text-red-500 hidden">
-                        <i class="fas fa-exclamation-triangle mr-2"></i>
-                        Unable to retrieve your location. Please ensure location services are enabled.
-                    </p>
-                    <p id="noCentersFound" class="text-gray-600 hidden">
-                        <i class="fas fa-search mr-2"></i>
-                        No e-waste collection centers found matching your criteria.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Statistics Section -->
-    <section class="py-16 bg-gray-100">
-        <div class="container mx-auto px-4 text-center">
-            <h2 class="text-3xl font-bold text-gray-800 mb-12">Our Impact</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="bg-white rounded-lg p-8 shadow-md">
-                    <div class="text-4xl text-green-600 mb-4">
-                        <i class="fas fa-recycle"></i>
-                    </div>
-                    <h3 class="text-3xl font-bold text-gray-800 mb-2">50,000+</h3>
-                    <p class="text-gray-600">Devices Recycled</p>
-                </div>
-                <div class="bg-white rounded-lg p-8 shadow-md">
-                    <div class="text-4xl text-blue-600 mb-4">
-                        <i class="fas fa-map-marker-alt"></i>
-                    </div>
-                    <h3 class="text-3xl font-bold text-gray-800 mb-2">200+</h3>
-                    <p class="text-gray-600">Collection Centers</p>
-                </div>
-                <div class="bg-white rounded-lg p-8 shadow-md">
-                    <div class="text-4xl text-purple-600 mb-4">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <h3 class="text-3xl font-bold text-gray-800 mb-2">25,000+</h3>
-                    <p class="text-gray-600">Happy Users</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Footer Section -->
-    <footer class="bg-gray-900 text-white">
-        <div class="container mx-auto px-4 py-12">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                <!-- Company Info -->
-                <div class="space-y-4">
-                    <div class="flex items-center space-x-2 mb-4">
-                        <i class="fas fa-recycle text-2xl text-green-400"></i>
-                        <h3 class="text-xl font-bold">E-Waste Connect</h3>
-                    </div>
-                    <p class="text-gray-300 text-sm leading-relaxed">
-                        Leading the way in responsible electronic waste disposal.
-                        We connect you with certified collection centers to protect
-                        our environment for future generations.
-                    </p>
-                    <div class="flex space-x-4">
-                        <a href="#" class="text-gray-300 hover:text-green-400 transition duration-200">
-                            <i class="fab fa-facebook-f text-xl"></i>
-                        </a>
-                        <a href="#" class="text-gray-300 hover:text-green-400 transition duration-200">
-                            <i class="fab fa-twitter text-xl"></i>
-                        </a>
-                        <a href="#" class="text-gray-300 hover:text-green-400 transition duration-200">
-                            <i class="fab fa-instagram text-xl"></i>
-                        </a>
-                        <a href="#" class="text-gray-300 hover:text-green-400 transition duration-200">
-                            <i class="fab fa-linkedin-in text-xl"></i>
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Quick Links -->
-                <div class="space-y-4">
-                    <h3 class="text-lg font-semibold text-green-400">Quick Links</h3>
-                    <ul class="space-y-2">
-                        <li>
-                            <a href="#home"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
-                                <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
-                                Home
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#about"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
-                                <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
-                                About Us
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#how-it-works"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
-                                <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
-                                How It Works
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#faq"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
-                                <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
-                                FAQ
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#contact"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
-                                <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
-                                Contact
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Services -->
-                <div class="space-y-4">
-                    <h3 class="text-lg font-semibold text-green-400">Our Services</h3>
-                    <ul class="space-y-2">
-                        <li>
-                            <a href="#"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
-                                <i class="fas fa-mobile-alt text-xs mr-2 text-green-400"></i>
-                                Mobile Device Recycling
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
-                                <i class="fas fa-laptop text-xs mr-2 text-green-400"></i>
-                                Computer Disposal
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
-                                <i class="fas fa-battery-half text-xs mr-2 text-green-400"></i>
-                                Battery Collection
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
-                                <i class="fas fa-tv text-xs mr-2 text-green-400"></i>
-                                Appliance Recycling
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
-                                <i class="fas fa-certificate text-xs mr-2 text-green-400"></i>
-                                Data Destruction
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Contact Info -->
-                <div class="space-y-4">
-                    <h3 class="text-lg font-semibold text-green-400">Get In Touch</h3>
-                    <div class="space-y-3">
-                        <div class="flex items-start space-x-3">
-                            <i class="fas fa-map-marker-alt text-green-400 mt-1"></i>
-                            <div>
-                                <p class="text-gray-300 text-sm">
-                                    123 Environmental Way<br>
-                                    Nairobi, Kenya 00100
-                                </p>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <i class="fas fa-phone text-green-400"></i>
-                            <a href="tel:+254700123456"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm">
-                                +254 700 123 456
-                            </a>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <i class="fas fa-envelope text-green-400"></i>
-                            <a href="mailto:info@ewasteconnect.ke"
-                                class="text-gray-300 hover:text-white transition duration-200 text-sm">
-                                info@ewasteconnect.ke
-                            </a>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <i class="fas fa-clock text-green-400"></i>
-                            <p class="text-gray-300 text-sm">
-                                24/7 Support Available
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Newsletter Signup -->
-            <div class="border-t border-gray-700 mt-8 pt-8">
-                <div class="max-w-2xl mx-auto text-center">
-                    <h3 class="text-xl font-semibold mb-4">Stay Updated</h3>
-                    <p class="text-gray-300 text-sm mb-6">
-                        Subscribe to our newsletter for the latest updates on e-waste recycling and environmental
-                        initiatives.
-                    </p>
-                    <div class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-                        <input type="email" placeholder="Enter your email address"
-                            class="flex-1 px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-600 focus:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50">
-                        <button
-                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200 whitespace-nowrap">
-                            <i class="fas fa-paper-plane mr-2"></i>
-                            Subscribe
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bottom Bar -->
-            <div class="border-t border-gray-700 mt-8 pt-6">
-                <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-                    <div class="text-center md:text-left">
-                        <p class="text-gray-400 text-sm">
-                            © 2025 E-Waste Connect. All rights reserved.
-                        </p>
-                    </div>
-                    <div class="flex flex-wrap justify-center md:justify-end space-x-6">
-                        <a href="#" class="text-gray-400 hover:text-white transition duration-200 text-sm">
-                            Privacy Policy
-                        </a>
-                        <a href="#" class="text-gray-400 hover:text-white transition duration-200 text-sm">
-                            Terms of Service
-                        </a>
-                        <a href="#" class="text-gray-400 hover:text-white transition duration-200 text-sm">
-                            Cookie Policy
-                        </a>
-                        <a href="#" class="text-gray-400 hover:text-white transition duration-200 text-sm">
-                            Sitemap
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Environmental Badge -->
-            <div class="mt-6 text-center">
-                <div class="inline-flex items-center space-x-2 bg-green-900 bg-opacity-30 px-4 py-2 rounded-full">
-                    <i class="fas fa-leaf text-green-400"></i>
-                    <span class="text-green-300 text-sm font-medium">
-                        Certified Carbon Neutral Organization
-                    </span>
-                    <i class="fas fa-award text-green-400"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- Back to Top Button -->
-        <button id="backToTopBtn"
-            class="fixed bottom-6 right-6 bg-green-600 hover:bg-green-700 text-white p-3 rounded-full shadow-lg transition duration-300 opacity-0 invisible"
-            title="Back to top">
-            <i class="fas fa-arrow-up"></i>
-        </button>
-    </footer>
-
-    <script>
-        // Global variables
-        let allCenters = [];
-        let filteredCenters = [];
-        let userLocation = null;
-
-        // Mobile menu functionality
-        const mobileMenuButton = document.getElementById('mobileMenuButton');
-        const closeMobileMenuButton = document.getElementById('closeMobileMenuButton');
-        const mobileMenu = document.getElementById('mobileMenu');
-
-        mobileMenuButton.addEventListener('click', () => {
-            mobileMenu.classList.add('active', 'slide-in-left');
-        });
-
-        closeMobileMenuButton.addEventListener('click', () => {
-            mobileMenu.classList.remove('active');
-        });
-
-        // Close menu when clicking outside
-        document.addEventListener('click', (event) => {
-            if (!mobileMenu.contains(event.target) && !mobileMenuButton.contains(event.target) && mobileMenu.classList.contains('active')) {
-                mobileMenu.classList.remove('active');
-            }
-        });
-
-        // Close menu when clicking on links
-        mobileMenu.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
-                mobileMenu.classList.remove('active');
-            });
-        });
-
-        // Enhanced mock data with more realistic information
-        const mockCentersData = [{
-                id: 1,
-                name: "GreenTech Recycling Hub",
-                address: "123 Eco Avenue, Nyeri Central",
-                lat: -0.4239,
-                lon: 36.9535,
-                phone: "+254 720 123 456",
-                email: "info@greentech.co.ke",
-                rating: 4.8,
-                reviews: 124,
-                hours: "Mon-Fri: 8AM-6PM, Sat: 9AM-4PM",
-                acceptedItems: ["phones", "laptops", "tablets", "batteries", "cables"],
-                certifications: ["ISO 14001", "R2 Certified"],
-                website: "www.greentech.co.ke"
-            },
-            {
-                id: 2,
-                name: "Nyeri E-Waste Solutions",
-                address: "45 River Road, Nyeri Town",
-                lat: -0.4280,
-                lon: 36.9520,
-                phone: "+254 733 987 654",
-                email: "contact@nyeriewaste.com",
-                rating: 4.6,
-                reviews: 89,
-                hours: "Mon-Sat: 7AM-7PM",
-                acceptedItems: ["appliances", "computers", "phones", "printers", "tvs"],
-                certifications: ["NEMA Approved", "ISO 9001"],
-                website: "www.nyeriewaste.com"
-            },
-            {
-                id: 3,
-                name: "Sustainable Tech Disposal",
-                address: "789 Hilltop Lane, Nyeri Heights",
-                lat: -0.4190,
-                lon: 36.9480,
-                phone: "+254 712 345 678",
-                email: "hello@sustaintech.ke",
-                rating: 4.9,
-                reviews: 156,
-                hours: "24/7 Drop-off Available",
-                acceptedItems: ["phones", "laptops", "batteries", "chargers", "headphones"],
-                certifications: ["Green Seal", "WEEE Compliant"],
-                website: "www.sustaintech.ke"
-            },
-            {
-                id: 4,
-                name: "Industrial E-Waste Center",
-                address: "Unit 5, Industrial Area, Nyeri",
-                lat: -0.4260,
-                lon: 36.9600,
-                phone: "+254 745 678 901",
-                email: "services@industrialwaste.co.ke",
-                rating: 4.3,
-                reviews: 67,
-                hours: "Mon-Fri: 6AM-8PM",
-                acceptedItems: ["appliances", "industrial equipment", "servers", "networking equipment"],
-                certifications: ["OHSAS 18001", "R2 Certified"],
-                website: "www.industrialwaste.co.ke"
-            },
-            {
-                id: 5,
-                name: "Community Recycle Point",
-                address: "Central Market Area, Nyeri",
-                lat: -0.4200,
-                lon: 36.9510,
-                phone: "+254 756 234 567",
-                email: "info@communityrecycle.org",
-                rating: 4.2,
-                reviews: 203,
-                hours: "Daily: 6AM-10PM",
-                acceptedItems: ["phones", "small appliances", "batteries", "cables", "accessories"],
-                certifications: ["Community Certified"],
-                website: "www.communityrecycle.org"
-            },
-            {
-                id: 6,
-                name: "Tech Renewal Hub",
-                address: "Shopping Complex, Nyeri CBD",
-                lat: -0.4220,
-                lon: 36.9545,
-                phone: "+254 767 890 123",
-                email: "support@techrenewal.ke",
-                rating: 4.7,
-                reviews: 91,
-                hours: "Mon-Sun: 9AM-9PM",
-                acceptedItems: ["laptops", "phones", "tablets", "gaming consoles", "smart devices"],
-                certifications: ["Tech Certified", "ISO 14001"],
-                website: "www.techrenewal.ke"
-            }
-        ];
-
-        // Calculate distance between two points
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Radius of Earth in kilometers
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a =
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return (R * c).toFixed(2);
-        }
-
-        // Generate star rating HTML
-        function generateStars(rating) {
-            const fullStars = Math.floor(rating);
-            const hasHalfStar = rating % 1 !== 0;
-            let starsHtml = '';
-
-            for (let i = 0; i < fullStars; i++) {
-                starsHtml += '<i class="fas fa-star"></i>';
-            }
-
-            if (hasHalfStar) {
-                starsHtml += '<i class="fas fa-star-half-alt"></i>';
-            }
-
-            const emptyStars = 5 - Math.ceil(rating);
-            for (let i = 0; i < emptyStars; i++) {
-                starsHtml += '<i class="far fa-star"></i>';
-            }
-
-            return starsHtml;
-        }
-
-        // Generate accepted items tags
-        function generateAcceptedItems(items) {
-            return items.map(item =>
-                `<span class="item-tag">${item.charAt(0).toUpperCase() + item.slice(1)}</span>`
-            ).join('');
-        }
-
-        // Render centers
-        function renderCenters(centers) {
-            const centersResultsDiv = document.getElementById('centersResults');
-            const resultsCount = document.getElementById('resultsCount');
-
-            resultsCount.textContent = `Found ${centers.length} collection center${centers.length !== 1 ? 's' : ''} near you`;
-
-            if (centers.length === 0) {
-                document.getElementById('noCentersFound').classList.remove('hidden');
-                centersResultsDiv.innerHTML = '';
-                return;
-            }
-
-            document.getElementById('noCentersFound').classList.add('hidden');
-
-            const centersHtml = centers.map(center => `
+ <!DOCTYPE html>
+ <html lang="en">
+
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>E-Waste Connect - Sustainable Electronics Disposal</title>
+     <script src="https://cdn.tailwindcss.com"></script>
+     <link rel="icon" href="favicon.svg" type="image/svg+xml">
+     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+     <style>
+         /* Custom animations and styles */
+         @keyframes fadeInUp {
+             from {
+                 opacity: 0;
+                 transform: translateY(30px);
+             }
+
+             to {
+                 opacity: 1;
+                 transform: translateY(0);
+             }
+         }
+
+         @keyframes pulse {
+
+             0%,
+             100% {
+                 transform: scale(1);
+             }
+
+             50% {
+                 transform: scale(1.05);
+             }
+         }
+
+         @keyframes slideInLeft {
+             from {
+                 opacity: 0;
+                 transform: translateX(-100%);
+             }
+
+             to {
+                 opacity: 1;
+                 transform: translateX(0);
+             }
+         }
+
+         .fade-in-up {
+             animation: fadeInUp 0.6s ease-out;
+         }
+
+         .pulse-animation {
+             animation: pulse 2s infinite;
+         }
+
+         .slide-in-left {
+             animation: slideInLeft 0.3s ease-out;
+         }
+
+         .mobile-menu {
+             transition: transform 0.3s ease-in-out;
+             transform: translateX(-100%);
+         }
+
+         .mobile-menu.active {
+             transform: translateX(0);
+         }
+
+         .gradient-bg {
+             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         }
+
+         .card-hover {
+             transition: transform 0.3s ease, box-shadow 0.3s ease;
+         }
+
+         .card-hover:hover {
+             transform: translateY(-5px);
+             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+         }
+
+         .loading-spinner {
+             border: 3px solid #f3f3f3;
+             border-top: 3px solid #10b981;
+             border-radius: 50%;
+             width: 30px;
+             height: 30px;
+             animation: spin 1s linear infinite;
+         }
+
+         @keyframes spin {
+             0% {
+                 transform: rotate(0deg);
+             }
+
+             100% {
+                 transform: rotate(360deg);
+             }
+         }
+
+         .rating-stars {
+             color: #fbbf24;
+         }
+
+         .accepted-items {
+             display: flex;
+             flex-wrap: wrap;
+             gap: 0.5rem;
+             margin-top: 0.5rem;
+         }
+
+         .item-tag {
+             background: #e5f3ff;
+             color: #1e40af;
+             padding: 0.25rem 0.5rem;
+             border-radius: 0.375rem;
+             font-size: 0.75rem;
+             font-weight: 500;
+         }
+
+         .filter-button {
+             transition: all 0.2s ease;
+         }
+
+         .filter-button.active {
+             background: #10b981;
+             color: white;
+         }
+
+         .progress-bar {
+             height: 4px;
+             background: #e5e7eb;
+             border-radius: 2px;
+             overflow: hidden;
+         }
+
+         .progress-fill {
+             height: 100%;
+             background: linear-gradient(90deg, #10b981, #059669);
+             border-radius: 2px;
+             transition: width 0.3s ease;
+         }
+     </style>
+ </head>
+
+ <body class="font-sans antialiased bg-gray-50">
+
+     <!-- Navigation -->
+     <nav class="bg-white shadow-lg sticky top-0 z-40">
+         <div class="container mx-auto px-4">
+             <div class="flex justify-between items-center py-4">
+                 <div class="flex items-center space-x-2">
+                     <i class="fas fa-recycle text-2xl text-green-600"></i>
+                     <a href="#" class="text-2xl font-bold text-gray-800">E-Waste Connect</a>
+                 </div>
+
+                 <div class="hidden md:flex space-x-6">
+                     <a href="#home"
+                         class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Home</a>
+                     <a href="#about"
+                         class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">About Us</a>
+                     <a href="#how-it-works"
+                         class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">How It
+                         Works</a>
+                     <a href="#faq"
+                         class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">FAQ</a>
+                     <a href="#contact"
+                         class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Contact</a>
+                 </div>
+
+                 <div class="md:hidden">
+                     <button id="mobileMenuButton" class="text-gray-600 hover:text-green-600 focus:outline-none">
+                         <i class="fas fa-bars text-xl"></i>
+                     </button>
+                 </div>
+             </div>
+         </div>
+     </nav>
+
+     <!-- Mobile Menu -->
+     <div id="mobileMenu" class="mobile-menu fixed top-0 left-0 w-80 h-full bg-white shadow-2xl z-50 md:hidden">
+         <div class="p-6">
+             <div class="flex justify-between items-center mb-8">
+                 <div class="flex items-center space-x-2">
+                     <i class="fas fa-recycle text-xl text-green-600"></i>
+                     <span class="text-xl font-bold text-gray-800">E-Waste Connect</span>
+                 </div>
+                 <button id="closeMobileMenuButton" class="text-gray-600 hover:text-green-600 focus:outline-none">
+                     <i class="fas fa-times text-xl"></i>
+                 </button>
+             </div>
+             <nav class="flex flex-col space-y-4">
+                 <a href="#home"
+                     class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
+                     <i class="fas fa-home mr-3"></i>Home
+                 </a>
+                 <a href="#about"
+                     class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
+                     <i class="fas fa-info-circle mr-3"></i>About Us
+                 </a>
+                 <a href="#how-it-works"
+                     class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
+                     <i class="fas fa-cogs mr-3"></i>How It Works
+                 </a>
+                 <a href="#faq"
+                     class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
+                     <i class="fas fa-question-circle mr-3"></i>FAQ
+                 </a>
+                 <a href="#contact"
+                     class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block transition duration-200">
+                     <i class="fas fa-envelope mr-3"></i>Contact
+                 </a>
+             </nav>
+         </div>
+     </div>
+
+     <!-- Hero Section -->
+     <section id="home" class="gradient-bg text-white py-20">
+         <div class="container mx-auto px-4 text-center">
+             <div class="max-w-4xl mx-auto fade-in-up">
+                 <h1 class="text-5xl md:text-6xl font-bold mb-6">Dispose of E-Waste Responsibly</h1>
+                 <p class="text-xl md:text-2xl mb-8 opacity-90">Find certified e-waste collection centers near you and
+                     help protect our environment</p>
+
+                 <div class="flex flex-col md:flex-row items-center justify-center gap-4 mb-12">
+                     <div class="flex items-center space-x-2 text-lg">
+                         <i class="fas fa-shield-alt text-green-300"></i>
+                         <span>Certified Centers</span>
+                     </div>
+                     <div class="flex items-center space-x-2 text-lg">
+                         <i class="fas fa-leaf text-green-300"></i>
+                         <span>Eco-Friendly</span>
+                     </div>
+                     <div class="flex items-center space-x-2 text-lg">
+                         <i class="fas fa-clock text-green-300"></i>
+                         <span>24/7 Available</span>
+                     </div>
+                 </div>
+
+                 <button id="findCentersBtn"
+                     class="bg-white text-gray-800 hover:bg-gray-100 font-bold py-4 px-8 rounded-full text-xl shadow-lg transition duration-300 ease-in-out pulse-animation">
+                     <i class="fas fa-map-marker-alt mr-2"></i>
+                     Find Collection Centers Near Me
+                 </button>
+             </div>
+         </div>
+     </section>
+
+     <!-- Progress Bar -->
+     <div id="progressContainer" class="progress-bar hidden">
+         <div id="progressBar" class="progress-fill" style="width: 0%"></div>
+     </div>
+
+     <!-- Search and Filter Section -->
+     <section class="py-12 bg-white">
+         <div class="container mx-auto px-4">
+             <div id="searchFilterSection" class="hidden fade-in-up">
+                 <div class="max-w-4xl mx-auto">
+                     <div class="bg-gray-50 rounded-lg p-6 mb-8">
+                         <div class="flex flex-col md:flex-row gap-4 items-center">
+                             <div class="flex-1">
+                                 <input type="text" id="searchInput" placeholder="Search by center name or location..."
+                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                             </div>
+                             <div class="flex gap-2">
+                                 <select id="sortSelect"
+                                     class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                     <option value="distance">Sort by Distance</option>
+                                     <option value="rating">Sort by Rating</option>
+                                     <option value="name">Sort by Name</option>
+                                 </select>
+                             </div>
+                         </div>
+
+                         <div class="mt-4">
+                             <p class="text-sm font-semibold text-gray-700 mb-2">Filter by accepted items:</p>
+                             <div class="flex flex-wrap gap-2">
+                                 <button
+                                     class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
+                                     data-filter="all">All Items</button>
+                                 <button
+                                     class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
+                                     data-filter="phones">Phones</button>
+                                 <button
+                                     class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
+                                     data-filter="laptops">Laptops</button>
+                                 <button
+                                     class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
+                                     data-filter="batteries">Batteries</button>
+                                 <button
+                                     class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
+                                     data-filter="appliances">Appliances</button>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+
+             <!-- Results Section -->
+             <div id="collectionCentersList" class="hidden">
+                 <div class="text-center mb-8">
+                     <h2 class="text-4xl font-bold text-gray-800 mb-4">Nearby Collection Centers</h2>
+                     <p id="resultsCount" class="text-gray-600"></p>
+                 </div>
+
+                 <div id="centersResults" class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                     <div class="col-span-full flex justify-center items-center py-12">
+                         <div class="loading-spinner"></div>
+                         <span class="ml-3 text-gray-600">Finding centers near you...</span>
+                     </div>
+                 </div>
+
+                 <div id="errorMessages" class="text-center mt-8">
+                     <p id="locationError" class="text-red-500 hidden">
+                         <i class="fas fa-exclamation-triangle mr-2"></i>
+                         Unable to retrieve your location. Please ensure location services are enabled.
+                     </p>
+                     <p id="noCentersFound" class="text-gray-600 hidden">
+                         <i class="fas fa-search mr-2"></i>
+                         No e-waste collection centers found matching your criteria.
+                     </p>
+                 </div>
+             </div>
+         </div>
+     </section>
+
+     <!-- Statistics Section -->
+     <section class="py-16 bg-gray-100">
+         <div class="container mx-auto px-4 text-center">
+             <h2 class="text-3xl font-bold text-gray-800 mb-12">Our Impact</h2>
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                 <div class="bg-white rounded-lg p-8 shadow-md">
+                     <div class="text-4xl text-green-600 mb-4">
+                         <i class="fas fa-recycle"></i>
+                     </div>
+                     <h3 class="text-3xl font-bold text-gray-800 mb-2">50,000+</h3>
+                     <p class="text-gray-600">Devices Recycled</p>
+                 </div>
+                 <div class="bg-white rounded-lg p-8 shadow-md">
+                     <div class="text-4xl text-blue-600 mb-4">
+                         <i class="fas fa-map-marker-alt"></i>
+                     </div>
+                     <h3 class="text-3xl font-bold text-gray-800 mb-2">200+</h3>
+                     <p class="text-gray-600">Collection Centers</p>
+                 </div>
+                 <div class="bg-white rounded-lg p-8 shadow-md">
+                     <div class="text-4xl text-purple-600 mb-4">
+                         <i class="fas fa-users"></i>
+                     </div>
+                     <h3 class="text-3xl font-bold text-gray-800 mb-2">25,000+</h3>
+                     <p class="text-gray-600">Happy Users</p>
+                 </div>
+             </div>
+         </div>
+     </section>
+
+     <!-- Footer Section -->
+     <footer class="bg-gray-900 text-white">
+         <div class="container mx-auto px-4 py-12">
+             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                 <!-- Company Info -->
+                 <div class="space-y-4">
+                     <div class="flex items-center space-x-2 mb-4">
+                         <i class="fas fa-recycle text-2xl text-green-400"></i>
+                         <h3 class="text-xl font-bold">E-Waste Connect</h3>
+                     </div>
+                     <p class="text-gray-300 text-sm leading-relaxed">
+                         Leading the way in responsible electronic waste disposal.
+                         We connect you with certified collection centers to protect
+                         our environment for future generations.
+                     </p>
+                     <div class="flex space-x-4">
+                         <a href="#" class="text-gray-300 hover:text-green-400 transition duration-200">
+                             <i class="fab fa-facebook-f text-xl"></i>
+                         </a>
+                         <a href="#" class="text-gray-300 hover:text-green-400 transition duration-200">
+                             <i class="fab fa-twitter text-xl"></i>
+                         </a>
+                         <a href="#" class="text-gray-300 hover:text-green-400 transition duration-200">
+                             <i class="fab fa-instagram text-xl"></i>
+                         </a>
+                         <a href="#" class="text-gray-300 hover:text-green-400 transition duration-200">
+                             <i class="fab fa-linkedin-in text-xl"></i>
+                         </a>
+                     </div>
+                 </div>
+
+                 <!-- Quick Links -->
+                 <div class="space-y-4">
+                     <h3 class="text-lg font-semibold text-green-400">Quick Links</h3>
+                     <ul class="space-y-2">
+                         <li>
+                             <a href="#home"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                                 <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
+                                 Home
+                             </a>
+                         </li>
+                         <li>
+                             <a href="#about"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                                 <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
+                                 About Us
+                             </a>
+                         </li>
+                         <li>
+                             <a href="#how-it-works"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                                 <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
+                                 How It Works
+                             </a>
+                         </li>
+                         <li>
+                             <a href="#faq"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                                 <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
+                                 FAQ
+                             </a>
+                         </li>
+                         <li>
+                             <a href="#contact"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                                 <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
+                                 Contact
+                             </a>
+                         </li>
+                     </ul>
+                 </div>
+
+                 <!-- Services -->
+                 <div class="space-y-4">
+                     <h3 class="text-lg font-semibold text-green-400">Our Services</h3>
+                     <ul class="space-y-2">
+                         <li>
+                             <a href="#"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                                 <i class="fas fa-mobile-alt text-xs mr-2 text-green-400"></i>
+                                 Mobile Device Recycling
+                             </a>
+                         </li>
+                         <li>
+                             <a href="#"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                                 <i class="fas fa-laptop text-xs mr-2 text-green-400"></i>
+                                 Computer Disposal
+                             </a>
+                         </li>
+                         <li>
+                             <a href="#"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                                 <i class="fas fa-battery-half text-xs mr-2 text-green-400"></i>
+                                 Battery Collection
+                             </a>
+                         </li>
+                         <li>
+                             <a href="#"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                                 <i class="fas fa-tv text-xs mr-2 text-green-400"></i>
+                                 Appliance Recycling
+                             </a>
+                         </li>
+                         <li>
+                             <a href="#"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                                 <i class="fas fa-certificate text-xs mr-2 text-green-400"></i>
+                                 Data Destruction
+                             </a>
+                         </li>
+                     </ul>
+                 </div>
+
+                 <!-- Contact Info -->
+                 <div class="space-y-4">
+                     <h3 class="text-lg font-semibold text-green-400">Get In Touch</h3>
+                     <div class="space-y-3">
+                         <div class="flex items-start space-x-3">
+                             <i class="fas fa-map-marker-alt text-green-400 mt-1"></i>
+                             <div>
+                                 <p class="text-gray-300 text-sm">
+                                     123 Environmental Way<br>
+                                     Nairobi, Kenya 00100
+                                 </p>
+                             </div>
+                         </div>
+                         <div class="flex items-center space-x-3">
+                             <i class="fas fa-phone text-green-400"></i>
+                             <a href="tel:+254700123456"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm">
+                                 +254 700 123 456
+                             </a>
+                         </div>
+                         <div class="flex items-center space-x-3">
+                             <i class="fas fa-envelope text-green-400"></i>
+                             <a href="mailto:info@ewasteconnect.ke"
+                                 class="text-gray-300 hover:text-white transition duration-200 text-sm">
+                                 info@ewasteconnect.ke
+                             </a>
+                         </div>
+                         <div class="flex items-center space-x-3">
+                             <i class="fas fa-clock text-green-400"></i>
+                             <p class="text-gray-300 text-sm">
+                                 24/7 Support Available
+                             </p>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+
+             <!-- Newsletter Signup -->
+             <div class="border-t border-gray-700 mt-8 pt-8">
+                 <div class="max-w-2xl mx-auto text-center">
+                     <h3 class="text-xl font-semibold mb-4">Stay Updated</h3>
+                     <p class="text-gray-300 text-sm mb-6">
+                         Subscribe to our newsletter for the latest updates on e-waste recycling and environmental
+                         initiatives.
+                     </p>
+                     <div class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+                         <input type="email" placeholder="Enter your email address"
+                             class="flex-1 px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-600 focus:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50">
+                         <button
+                             class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200 whitespace-nowrap">
+                             <i class="fas fa-paper-plane mr-2"></i>
+                             Subscribe
+                         </button>
+                     </div>
+                 </div>
+             </div>
+
+             <!-- Bottom Bar -->
+             <div class="border-t border-gray-700 mt-8 pt-6">
+                 <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+                     <div class="text-center md:text-left">
+                         <p class="text-gray-400 text-sm">
+                             © 2025 E-Waste Connect. All rights reserved.
+                         </p>
+                     </div>
+                     <div class="flex flex-wrap justify-center md:justify-end space-x-6">
+                         <a href="#" class="text-gray-400 hover:text-white transition duration-200 text-sm">
+                             Privacy Policy
+                         </a>
+                         <a href="#" class="text-gray-400 hover:text-white transition duration-200 text-sm">
+                             Terms of Service
+                         </a>
+                         <a href="#" class="text-gray-400 hover:text-white transition duration-200 text-sm">
+                             Cookie Policy
+                         </a>
+                         <a href="#" class="text-gray-400 hover:text-white transition duration-200 text-sm">
+                             Sitemap
+                         </a>
+                     </div>
+                 </div>
+             </div>
+
+             <!-- Environmental Badge -->
+             <div class="mt-6 text-center">
+                 <div class="inline-flex items-center space-x-2 bg-green-900 bg-opacity-30 px-4 py-2 rounded-full">
+                     <i class="fas fa-leaf text-green-400"></i>
+                     <span class="text-green-300 text-sm font-medium">
+                         Certified Carbon Neutral Organization
+                     </span>
+                     <i class="fas fa-award text-green-400"></i>
+                 </div>
+             </div>
+         </div>
+
+         <!-- Back to Top Button -->
+         <button id="backToTopBtn"
+             class="fixed bottom-6 right-6 bg-green-600 hover:bg-green-700 text-white p-3 rounded-full shadow-lg transition duration-300 opacity-0 invisible"
+             title="Back to top">
+             <i class="fas fa-arrow-up"></i>
+         </button>
+     </footer>
+
+     <script>
+         // Global variables
+         let allCenters = [];
+         let filteredCenters = [];
+         let userLocation = null;
+
+         // Mobile menu functionality
+         const mobileMenuButton = document.getElementById('mobileMenuButton');
+         const closeMobileMenuButton = document.getElementById('closeMobileMenuButton');
+         const mobileMenu = document.getElementById('mobileMenu');
+
+         mobileMenuButton.addEventListener('click', () => {
+             mobileMenu.classList.add('active', 'slide-in-left');
+         });
+
+         closeMobileMenuButton.addEventListener('click', () => {
+             mobileMenu.classList.remove('active');
+         });
+
+         // Close menu when clicking outside
+         document.addEventListener('click', (event) => {
+             if (!mobileMenu.contains(event.target) && !mobileMenuButton.contains(event.target) && mobileMenu.classList.contains('active')) {
+                 mobileMenu.classList.remove('active');
+             }
+         });
+
+         // Close menu when clicking on links
+         mobileMenu.querySelectorAll('a').forEach(link => {
+             link.addEventListener('click', () => {
+                 mobileMenu.classList.remove('active');
+             });
+         });
+
+         // Enhanced mock data with more realistic information
+         const mockCentersData = [{
+                 id: 1,
+                 name: "GreenTech Recycling Hub",
+                 address: "123 Eco Avenue, Nyeri Central",
+                 lat: -0.4239,
+                 lon: 36.9535,
+                 phone: "+254 720 123 456",
+                 email: "info@greentech.co.ke",
+                 rating: 4.8,
+                 reviews: 124,
+                 hours: "Mon-Fri: 8AM-6PM, Sat: 9AM-4PM",
+                 acceptedItems: ["phones", "laptops", "tablets", "batteries", "cables"],
+                 certifications: ["ISO 14001", "R2 Certified"],
+                 website: "www.greentech.co.ke"
+             },
+             {
+                 id: 2,
+                 name: "Nyeri E-Waste Solutions",
+                 address: "45 River Road, Nyeri Town",
+                 lat: -0.4280,
+                 lon: 36.9520,
+                 phone: "+254 733 987 654",
+                 email: "contact@nyeriewaste.com",
+                 rating: 4.6,
+                 reviews: 89,
+                 hours: "Mon-Sat: 7AM-7PM",
+                 acceptedItems: ["appliances", "computers", "phones", "printers", "tvs"],
+                 certifications: ["NEMA Approved", "ISO 9001"],
+                 website: "www.nyeriewaste.com"
+             },
+             {
+                 id: 3,
+                 name: "Sustainable Tech Disposal",
+                 address: "789 Hilltop Lane, Nyeri Heights",
+                 lat: -0.4190,
+                 lon: 36.9480,
+                 phone: "+254 712 345 678",
+                 email: "hello@sustaintech.ke",
+                 rating: 4.9,
+                 reviews: 156,
+                 hours: "24/7 Drop-off Available",
+                 acceptedItems: ["phones", "laptops", "batteries", "chargers", "headphones"],
+                 certifications: ["Green Seal", "WEEE Compliant"],
+                 website: "www.sustaintech.ke"
+             },
+             {
+                 id: 4,
+                 name: "Industrial E-Waste Center",
+                 address: "Unit 5, Industrial Area, Nyeri",
+                 lat: -0.4260,
+                 lon: 36.9600,
+                 phone: "+254 745 678 901",
+                 email: "services@industrialwaste.co.ke",
+                 rating: 4.3,
+                 reviews: 67,
+                 hours: "Mon-Fri: 6AM-8PM",
+                 acceptedItems: ["appliances", "industrial equipment", "servers", "networking equipment"],
+                 certifications: ["OHSAS 18001", "R2 Certified"],
+                 website: "www.industrialwaste.co.ke"
+             },
+             {
+                 id: 5,
+                 name: "Community Recycle Point",
+                 address: "Central Market Area, Nyeri",
+                 lat: -0.4200,
+                 lon: 36.9510,
+                 phone: "+254 756 234 567",
+                 email: "info@communityrecycle.org",
+                 rating: 4.2,
+                 reviews: 203,
+                 hours: "Daily: 6AM-10PM",
+                 acceptedItems: ["phones", "small appliances", "batteries", "cables", "accessories"],
+                 certifications: ["Community Certified"],
+                 website: "www.communityrecycle.org"
+             },
+             {
+                 id: 6,
+                 name: "Tech Renewal Hub",
+                 address: "Shopping Complex, Nyeri CBD",
+                 lat: -0.4220,
+                 lon: 36.9545,
+                 phone: "+254 767 890 123",
+                 email: "support@techrenewal.ke",
+                 rating: 4.7,
+                 reviews: 91,
+                 hours: "Mon-Sun: 9AM-9PM",
+                 acceptedItems: ["laptops", "phones", "tablets", "gaming consoles", "smart devices"],
+                 certifications: ["Tech Certified", "ISO 14001"],
+                 website: "www.techrenewal.ke"
+             }
+         ];
+
+         // Calculate distance between two points
+         function calculateDistance(lat1, lon1, lat2, lon2) {
+             const R = 6371; // Radius of Earth in kilometers
+             const dLat = (lat2 - lat1) * Math.PI / 180;
+             const dLon = (lon2 - lon1) * Math.PI / 180;
+             const a =
+                 Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                 Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                 Math.sin(dLon / 2) * Math.sin(dLon / 2);
+             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+             return (R * c).toFixed(2);
+         }
+
+         // Generate star rating HTML
+         function generateStars(rating) {
+             const fullStars = Math.floor(rating);
+             const hasHalfStar = rating % 1 !== 0;
+             let starsHtml = '';
+
+             for (let i = 0; i < fullStars; i++) {
+                 starsHtml += '<i class="fas fa-star"></i>';
+             }
+
+             if (hasHalfStar) {
+                 starsHtml += '<i class="fas fa-star-half-alt"></i>';
+             }
+
+             const emptyStars = 5 - Math.ceil(rating);
+             for (let i = 0; i < emptyStars; i++) {
+                 starsHtml += '<i class="far fa-star"></i>';
+             }
+
+             return starsHtml;
+         }
+
+         // Generate accepted items tags
+         function generateAcceptedItems(items) {
+             return items.map(item =>
+                 `<span class="item-tag">${item.charAt(0).toUpperCase() + item.slice(1)}</span>`
+             ).join('');
+         }
+
+         // Render centers
+         function renderCenters(centers) {
+             const centersResultsDiv = document.getElementById('centersResults');
+             const resultsCount = document.getElementById('resultsCount');
+
+             resultsCount.textContent = `Found ${centers.length} collection center${centers.length !== 1 ? 's' : ''} near you`;
+
+             if (centers.length === 0) {
+                 document.getElementById('noCentersFound').classList.remove('hidden');
+                 centersResultsDiv.innerHTML = '';
+                 return;
+             }
+
+             document.getElementById('noCentersFound').classList.add('hidden');
+
+             const centersHtml = centers.map(center => `
                 <div class="bg-white rounded-xl shadow-lg p-6 card-hover fade-in-up">
                     <div class="flex justify-between items-start mb-3">
                         <h3 class="text-xl font-bold text-gray-800">${center.name}</h3>
@@ -930,334 +808,334 @@ $conn->close();
                 </div>
             `).join('');
 
-            centersResultsDiv.innerHTML = centersHtml;
-        }
+             centersResultsDiv.innerHTML = centersHtml;
+         }
 
-        // Filter and sort centers
-        function filterAndSortCenters() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const sortBy = document.getElementById('sortSelect').value;
-            const activeFilter = document.querySelector('.filter-button.active')?.dataset.filter || 'all';
+         // Filter and sort centers
+         function filterAndSortCenters() {
+             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+             const sortBy = document.getElementById('sortSelect').value;
+             const activeFilter = document.querySelector('.filter-button.active')?.dataset.filter || 'all';
 
-            let filtered = allCenters.filter(center => {
-                const matchesSearch = center.name.toLowerCase().includes(searchTerm) ||
-                    center.address.toLowerCase().includes(searchTerm);
+             let filtered = allCenters.filter(center => {
+                 const matchesSearch = center.name.toLowerCase().includes(searchTerm) ||
+                     center.address.toLowerCase().includes(searchTerm);
 
-                const matchesFilter = activeFilter === 'all' ||
-                    center.acceptedItems.includes(activeFilter);
+                 const matchesFilter = activeFilter === 'all' ||
+                     center.acceptedItems.includes(activeFilter);
 
-                return matchesSearch && matchesFilter;
-            });
+                 return matchesSearch && matchesFilter;
+             });
 
-            // Sort centers
-            filtered.sort((a, b) => {
-                switch (sortBy) {
-                    case 'distance':
-                        return parseFloat(a.distance) - parseFloat(b.distance);
-                    case 'rating':
-                        return b.rating - a.rating;
-                    case 'name':
-                        return a.name.localeCompare(b.name);
-                    default:
-                        return 0;
-                }
-            });
+             // Sort centers
+             filtered.sort((a, b) => {
+                 switch (sortBy) {
+                     case 'distance':
+                         return parseFloat(a.distance) - parseFloat(b.distance);
+                     case 'rating':
+                         return b.rating - a.rating;
+                     case 'name':
+                         return a.name.localeCompare(b.name);
+                     default:
+                         return 0;
+                 }
+             });
 
-            filteredCenters = filtered;
-            renderCenters(filteredCenters);
-        }
+             filteredCenters = filtered;
+             renderCenters(filteredCenters);
+         }
 
-        // Setup event listeners for search and filter
-        function setupSearchAndFilter() {
-            document.getElementById('searchInput').addEventListener('input', filterAndSortCenters);
-            document.getElementById('sortSelect').addEventListener('change', filterAndSortCenters);
+         // Setup event listeners for search and filter
+         function setupSearchAndFilter() {
+             document.getElementById('searchInput').addEventListener('input', filterAndSortCenters);
+             document.getElementById('sortSelect').addEventListener('change', filterAndSortCenters);
 
-            document.querySelectorAll('.filter-button').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
-                    e.target.classList.add('active');
-                    filterAndSortCenters();
-                });
-            });
+             document.querySelectorAll('.filter-button').forEach(button => {
+                 button.addEventListener('click', (e) => {
+                     document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+                     e.target.classList.add('active');
+                     filterAndSortCenters();
+                 });
+             });
 
-            // Set default active filter
-            document.querySelector('.filter-button[data-filter="all"]').classList.add('active');
-        }
+             // Set default active filter
+             document.querySelector('.filter-button[data-filter="all"]').classList.add('active');
+         }
 
-        // Animate progress bar
-        function animateProgressBar(targetWidth, duration = 2000) {
-            const progressBar = document.getElementById('progressBar');
-            const progressContainer = document.getElementById('progressContainer');
+         // Animate progress bar
+         function animateProgressBar(targetWidth, duration = 2000) {
+             const progressBar = document.getElementById('progressBar');
+             const progressContainer = document.getElementById('progressContainer');
 
-            progressContainer.classList.remove('hidden');
+             progressContainer.classList.remove('hidden');
 
-            let start = 0;
-            const increment = targetWidth / (duration / 16); // 60 FPS
+             let start = 0;
+             const increment = targetWidth / (duration / 16); // 60 FPS
 
-            const animate = () => {
-                start += increment;
-                if (start >= targetWidth) {
-                    progressBar.style.width = targetWidth + '%';
-                    setTimeout(() => {
-                        progressContainer.classList.add('hidden');
-                    }, 500);
-                } else {
-                    progressBar.style.width = start + '%';
-                    requestAnimationFrame(animate);
-                }
-            };
+             const animate = () => {
+                 start += increment;
+                 if (start >= targetWidth) {
+                     progressBar.style.width = targetWidth + '%';
+                     setTimeout(() => {
+                         progressContainer.classList.add('hidden');
+                     }, 500);
+                 } else {
+                     progressBar.style.width = start + '%';
+                     requestAnimationFrame(animate);
+                 }
+             };
 
-            animate();
-        }
+             animate();
+         }
 
-        // Main function to find centers
-        document.getElementById('findCentersBtn').addEventListener('click', async () => {
-            const centersListDiv = document.getElementById('collectionCentersList');
-            const centersResultsDiv = document.getElementById('centersResults');
-            const locationErrorParagraph = document.getElementById('locationError');
-            const noCentersFoundParagraph = document.getElementById('noCentersFound');
-            const searchFilterSection = document.getElementById('searchFilterSection');
+         // Main function to find centers
+         document.getElementById('findCentersBtn').addEventListener('click', async () => {
+             const centersListDiv = document.getElementById('collectionCentersList');
+             const centersResultsDiv = document.getElementById('centersResults');
+             const locationErrorParagraph = document.getElementById('locationError');
+             const noCentersFoundParagraph = document.getElementById('noCentersFound');
+             const searchFilterSection = document.getElementById('searchFilterSection');
 
-            // Show loading state
-            centersListDiv.classList.remove('hidden');
-            centersResultsDiv.innerHTML = `
+             // Show loading state
+             centersListDiv.classList.remove('hidden');
+             centersResultsDiv.innerHTML = `
                 <div class="col-span-full flex justify-center items-center py-12">
                     <div class="loading-spinner"></div>
                     <span class="ml-3 text-gray-600">Getting your location...</span>
                 </div>
             `;
-            locationErrorParagraph.classList.add('hidden');
-            noCentersFoundParagraph.classList.add('hidden');
+             locationErrorParagraph.classList.add('hidden');
+             noCentersFoundParagraph.classList.add('hidden');
 
-            // Animate progress
-            animateProgressBar(30);
+             // Animate progress
+             animateProgressBar(30);
 
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    async (position) => {
-                            userLocation = {
-                                lat: position.coords.latitude,
-                                lon: position.coords.longitude
-                            };
+             if (navigator.geolocation) {
+                 navigator.geolocation.getCurrentPosition(
+                     async (position) => {
+                             userLocation = {
+                                 lat: position.coords.latitude,
+                                 lon: position.coords.longitude
+                             };
 
-                            // Update progress and loading text
-                            animateProgressBar(70);
-                            centersResultsDiv.innerHTML = `
+                             // Update progress and loading text
+                             animateProgressBar(70);
+                             centersResultsDiv.innerHTML = `
                             <div class="col-span-full flex justify-center items-center py-12">
                                 <div class="loading-spinner"></div>
                                 <span class="ml-3 text-gray-600">Finding nearby centers...</span>
                             </div>
                         `;
 
-                            try {
-                                // Simulate API call delay
-                                await new Promise(resolve => setTimeout(resolve, 1500));
+                             try {
+                                 // Simulate API call delay
+                                 await new Promise(resolve => setTimeout(resolve, 1500));
 
-                                // Process centers with distance calculation
-                                allCenters = mockCentersData.map(center => ({
-                                    ...center,
-                                    distance: calculateDistance(
-                                        userLocation.lat,
-                                        userLocation.lon,
-                                        center.lat,
-                                        center.lon
-                                    )
-                                })).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+                                 // Process centers with distance calculation
+                                 allCenters = mockCentersData.map(center => ({
+                                     ...center,
+                                     distance: calculateDistance(
+                                         userLocation.lat,
+                                         userLocation.lon,
+                                         center.lat,
+                                         center.lon
+                                     )
+                                 })).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
 
-                                // Complete progress
-                                animateProgressBar(100);
+                                 // Complete progress
+                                 animateProgressBar(100);
 
-                                // Show search and filter section
-                                searchFilterSection.classList.remove('hidden');
+                                 // Show search and filter section
+                                 searchFilterSection.classList.remove('hidden');
 
-                                // Setup search and filter functionality
-                                setupSearchAndFilter();
+                                 // Setup search and filter functionality
+                                 setupSearchAndFilter();
 
-                                // Initial render
-                                filteredCenters = [...allCenters];
-                                renderCenters(filteredCenters);
+                                 // Initial render
+                                 filteredCenters = [...allCenters];
+                                 renderCenters(filteredCenters);
 
-                            } catch (error) {
-                                console.error("Error fetching e-waste centers:", error);
-                                centersResultsDiv.innerHTML = `
+                             } catch (error) {
+                                 console.error("Error fetching e-waste centers:", error);
+                                 centersResultsDiv.innerHTML = `
                                 <div class="col-span-full text-center py-12">
                                     <i class="fas fa-exclamation-triangle text-red-500 text-3xl mb-4"></i>
                                     <p class="text-red-500">Error finding centers. Please try again later.</p>
                                 </div>
                             `;
-                            }
-                        },
-                        (error) => {
-                            console.error("Geolocation error:", error);
-                            locationErrorParagraph.classList.remove('hidden');
-                            centersResultsDiv.innerHTML = '';
+                             }
+                         },
+                         (error) => {
+                             console.error("Geolocation error:", error);
+                             locationErrorParagraph.classList.remove('hidden');
+                             centersResultsDiv.innerHTML = '';
 
-                            // Still show centers with approximate distances for demo
-                            setTimeout(() => {
-                                allCenters = mockCentersData.map(center => ({
-                                    ...center,
-                                    distance: (Math.random() * 5 + 1).toFixed(2) // Random distance for demo
-                                })).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+                             // Still show centers with approximate distances for demo
+                             setTimeout(() => {
+                                 allCenters = mockCentersData.map(center => ({
+                                     ...center,
+                                     distance: (Math.random() * 5 + 1).toFixed(2) // Random distance for demo
+                                 })).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
 
-                                searchFilterSection.classList.remove('hidden');
-                                setupSearchAndFilter();
-                                filteredCenters = [...allCenters];
-                                renderCenters(filteredCenters);
-                            }, 1000);
-                        }
-                );
-            } else {
-                locationErrorParagraph.innerText = "Geolocation is not supported by your browser.";
-                locationErrorParagraph.classList.remove('hidden');
-                centersResultsDiv.innerHTML = '';
+                                 searchFilterSection.classList.remove('hidden');
+                                 setupSearchAndFilter();
+                                 filteredCenters = [...allCenters];
+                                 renderCenters(filteredCenters);
+                             }, 1000);
+                         }
+                 );
+             } else {
+                 locationErrorParagraph.innerText = "Geolocation is not supported by your browser.";
+                 locationErrorParagraph.classList.remove('hidden');
+                 centersResultsDiv.innerHTML = '';
 
-                // Still show centers for demo
-                setTimeout(() => {
-                    allCenters = mockCentersData.map(center => ({
-                        ...center,
-                        distance: (Math.random() * 5 + 1).toFixed(2)
-                    }));
+                 // Still show centers for demo
+                 setTimeout(() => {
+                     allCenters = mockCentersData.map(center => ({
+                         ...center,
+                         distance: (Math.random() * 5 + 1).toFixed(2)
+                     }));
 
-                    searchFilterSection.classList.remove('hidden');
-                    setupSearchAndFilter();
-                    filteredCenters = [...allCenters];
-                    renderCenters(filteredCenters);
-                }, 1000);
-            }
-        });
+                     searchFilterSection.classList.remove('hidden');
+                     setupSearchAndFilter();
+                     filteredCenters = [...allCenters];
+                     renderCenters(filteredCenters);
+                 }, 1000);
+             }
+         });
 
-        // Smooth scrolling for navigation links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            });
-        });
+         // Smooth scrolling for navigation links
+         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+             anchor.addEventListener('click', function(e) {
+                 e.preventDefault();
+                 const target = document.querySelector(this.getAttribute('href'));
+                 if (target) {
+                     target.scrollIntoView({
+                         behavior: 'smooth',
+                         block: 'start'
+                     });
+                 }
+             });
+         });
 
-        // Add scroll-triggered animations
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
+         // Add scroll-triggered animations
+         const observerOptions = {
+             threshold: 0.1,
+             rootMargin: '0px 0px -50px 0px'
+         };
 
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('fade-in-up');
-                }
-            });
-        }, observerOptions);
+         const observer = new IntersectionObserver((entries) => {
+             entries.forEach(entry => {
+                 if (entry.isIntersecting) {
+                     entry.target.classList.add('fade-in-up');
+                 }
+             });
+         }, observerOptions);
 
-        // Observe elements for animation
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.card-hover, .bg-white').forEach(el => {
-                observer.observe(el);
-            });
-        });
+         // Observe elements for animation
+         document.addEventListener('DOMContentLoaded', () => {
+             document.querySelectorAll('.card-hover, .bg-white').forEach(el => {
+                 observer.observe(el);
+             });
+         });
 
-        // Add some interactive feedback
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('button, .bg-green-600, .bg-blue-600')) {
-                e.target.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    e.target.style.transform = '';
-                }, 150);
-            }
-        });
+         // Add some interactive feedback
+         document.addEventListener('click', (e) => {
+             if (e.target.matches('button, .bg-green-600, .bg-blue-600')) {
+                 e.target.style.transform = 'scale(0.95)';
+                 setTimeout(() => {
+                     e.target.style.transform = '';
+                 }, 150);
+             }
+         });
 
-        // Back to top button functionality
-        const backToTopBtn = document.getElementById('backToTopBtn');
+         // Back to top button functionality
+         const backToTopBtn = document.getElementById('backToTopBtn');
 
-        window.addEventListener('scroll', () => {
-            if (window.pageYOffset > 300) {
-                backToTopBtn.classList.remove('opacity-0', 'invisible');
-                backToTopBtn.classList.add('opacity-100', 'visible');
-            } else {
-                backToTopBtn.classList.add('opacity-0', 'invisible');
-                backToTopBtn.classList.remove('opacity-100', 'visible');
-            }
-        });
+         window.addEventListener('scroll', () => {
+             if (window.pageYOffset > 300) {
+                 backToTopBtn.classList.remove('opacity-0', 'invisible');
+                 backToTopBtn.classList.add('opacity-100', 'visible');
+             } else {
+                 backToTopBtn.classList.add('opacity-0', 'invisible');
+                 backToTopBtn.classList.remove('opacity-100', 'visible');
+             }
+         });
 
-        backToTopBtn.addEventListener('click', () => {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        });
+         backToTopBtn.addEventListener('click', () => {
+             window.scrollTo({
+                 top: 0,
+                 behavior: 'smooth'
+             });
+         });
 
-        // Newsletter signup functionality
-        const newsletterForm = document.querySelector('footer input[type="email"]').parentElement;
-        const newsletterBtn = newsletterForm.querySelector('button');
-        const newsletterInput = newsletterForm.querySelector('input[type="email"]');
+         // Newsletter signup functionality
+         const newsletterForm = document.querySelector('footer input[type="email"]').parentElement;
+         const newsletterBtn = newsletterForm.querySelector('button');
+         const newsletterInput = newsletterForm.querySelector('input[type="email"]');
 
-        newsletterBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const email = newsletterInput.value.trim();
+         newsletterBtn.addEventListener('click', (e) => {
+             e.preventDefault();
+             const email = newsletterInput.value.trim();
 
-            if (!email) {
-                alert('Please enter your email address');
-                return;
-            }
+             if (!email) {
+                 alert('Please enter your email address');
+                 return;
+             }
 
-            if (!isValidEmail(email)) {
-                alert('Please enter a valid email address');
-                return;
-            }
+             if (!isValidEmail(email)) {
+                 alert('Please enter a valid email address');
+                 return;
+             }
 
-            // Simulate newsletter signup
-            newsletterBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Subscribing...';
-            newsletterBtn.disabled = true;
+             // Simulate newsletter signup
+             newsletterBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Subscribing...';
+             newsletterBtn.disabled = true;
 
-            setTimeout(() => {
-                newsletterBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Subscribed!';
-                newsletterBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
-                newsletterBtn.classList.add('bg-green-500');
-                newsletterInput.value = '';
+             setTimeout(() => {
+                 newsletterBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Subscribed!';
+                 newsletterBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                 newsletterBtn.classList.add('bg-green-500');
+                 newsletterInput.value = '';
 
-                setTimeout(() => {
-                    newsletterBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Subscribe';
-                    newsletterBtn.classList.add('bg-green-600', 'hover:bg-green-700');
-                    newsletterBtn.classList.remove('bg-green-500');
-                    newsletterBtn.disabled = false;
-                }, 3000);
-            }, 2000);
-        });
+                 setTimeout(() => {
+                     newsletterBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Subscribe';
+                     newsletterBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                     newsletterBtn.classList.remove('bg-green-500');
+                     newsletterBtn.disabled = false;
+                 }, 3000);
+             }, 2000);
+         });
 
-        // Email validation helper
-        function isValidEmail(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
-        }
+         // Email validation helper
+         function isValidEmail(email) {
+             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+             return emailRegex.test(email);
+         }
 
-        // Add enter key support for newsletter signup
-        newsletterInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                newsletterBtn.click();
-            }
-        });
+         // Add enter key support for newsletter signup
+         newsletterInput.addEventListener('keypress', (e) => {
+             if (e.key === 'Enter') {
+                 newsletterBtn.click();
+             }
+         });
 
-        // Auto-hide loading states after timeout
-        setTimeout(() => {
-            const loadingElements = document.querySelectorAll('.loading-spinner');
-            loadingElements.forEach(el => {
-                const parent = el.closest('.col-span-full');
-                if (parent && parent.textContent.includes('Finding')) {
-                    parent.innerHTML = `
+         // Auto-hide loading states after timeout
+         setTimeout(() => {
+             const loadingElements = document.querySelectorAll('.loading-spinner');
+             loadingElements.forEach(el => {
+                 const parent = el.closest('.col-span-full');
+                 if (parent && parent.textContent.includes('Finding')) {
+                     parent.innerHTML = `
                         <div class="text-center py-12">
                             <i class="fas fa-info-circle text-blue-500 text-3xl mb-4"></i>
                             <p class="text-gray-600">Click the button above to find centers near you</p>
                         </div>
                     `;
-                }
-            });
-        }, 30000); // 30 second timeout
-    </script>
-</body>
+                 }
+             });
+         }, 30000); // 30 second timeout
+     </script>
+ </body>
 
-</html>
+ </html>

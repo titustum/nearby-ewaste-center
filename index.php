@@ -1,5 +1,128 @@
+<?php
+// Database connection
+$conn = new mysqli("localhost", "root", "", "ewaste_connect");
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// Create collection_centers table
+$sql = "CREATE TABLE IF NOT EXISTS collection_centers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    address TEXT NOT NULL,
+    lat DECIMAL(10, 8) NOT NULL,
+    lon DECIMAL(11, 8) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    rating DECIMAL(2, 1) DEFAULT 0.0,
+    reviews INT DEFAULT 0,
+    hours VARCHAR(100) NOT NULL,
+    certifications VARCHAR(255),
+    website VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)";
+
+if ($conn->query($sql) === TRUE) {
+    echo "Table 'collection_centers' created successfully<br>";
+} else {
+    echo "Error creating table: " . $conn->error . "<br>";
+}
+
+// Create accepted_items table
+$sql = "CREATE TABLE IF NOT EXISTS accepted_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    center_id INT NOT NULL,
+    item_type VARCHAR(50) NOT NULL,
+    FOREIGN KEY (center_id) REFERENCES collection_centers(id)
+)";
+
+if ($conn->query($sql) === TRUE) {
+    echo "Table 'accepted_items' created successfully<br>";
+} else {
+    echo "Error creating table: " . $conn->error . "<br>";
+}
+
+// Insert sample data
+$centers = [
+    [
+        'name' => 'Green Tech Recyclers',
+        'address' => '123 Eco Avenue, Nyeri',
+        'lat' => -0.4239,
+        'lon' => 36.9535,
+        'phone' => '+254700111222',
+        'email' => 'info@greentech.co.ke',
+        'rating' => 4.5,
+        'reviews' => 24,
+        'hours' => 'Mon-Fri: 8AM-6PM, Sat: 9AM-4PM',
+        'certifications' => 'ISO 14001, R2 Certified',
+        'website' => 'www.greentech.co.ke',
+        'items' => ['phones', 'laptops', 'batteries']
+    ],
+    [
+        'name' => 'Nyeri E-Waste Solutions',
+        'address' => '45 River Road, Nyeri',
+        'lat' => -0.4280,
+        'lon' => 36.9520,
+        'phone' => '+254700333444',
+        'email' => 'contact@nyeriewaste.com',
+        'rating' => 4.2,
+        'reviews' => 18,
+        'hours' => 'Mon-Sat: 7AM-7PM',
+        'certifications' => 'NEMA Approved',
+        'website' => 'www.nyeriewaste.com',
+        'items' => ['appliances', 'computers', 'phones']
+    ]
+];
+
+foreach ($centers as $center) {
+    // Insert center
+    $sql = "INSERT INTO collection_centers (name, address, lat, lon, phone, email, rating, reviews, hours, certifications, website) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param(
+        "ssddssdiss",
+        $center['name'],
+        $center['address'],
+        $center['lat'],
+        $center['lon'],
+        $center['phone'],
+        $center['email'],
+        $center['rating'],
+        $center['reviews'],
+        $center['hours'],
+        $center['certifications'],
+        $center['website']
+    );
+
+    if ($stmt->execute()) {
+        $center_id = $conn->insert_id;
+        echo "Added center: " . $center['name'] . "<br>";
+
+        // Insert accepted items
+        foreach ($center['items'] as $item) {
+            $sql = "INSERT INTO accepted_items (center_id, item_type) VALUES (?, ?)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("is", $center_id, $item);
+            $stmt->execute();
+        }
+    } else {
+        echo "Error adding center: " . $stmt->error . "<br>";
+    }
+}
+
+$conn->close();
+?>
+
+
+
+
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +137,7 @@
                 opacity: 0;
                 transform: translateY(30px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -21,9 +145,12 @@
         }
 
         @keyframes pulse {
-            0%, 100% {
+
+            0%,
+            100% {
                 transform: scale(1);
             }
+
             50% {
                 transform: scale(1.05);
             }
@@ -34,6 +161,7 @@
                 opacity: 0;
                 transform: translateX(-100%);
             }
+
             to {
                 opacity: 1;
                 transform: translateX(0);
@@ -56,6 +184,7 @@
             transition: transform 0.3s ease-in-out;
             transform: translateX(-100%);
         }
+
         .mobile-menu.active {
             transform: translateX(0);
         }
@@ -83,8 +212,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .rating-stars {
@@ -131,6 +265,7 @@
         }
     </style>
 </head>
+
 <body class="font-sans antialiased bg-gray-50">
 
     <!-- Navigation -->
@@ -143,11 +278,17 @@
                 </div>
 
                 <div class="hidden md:flex space-x-6">
-                    <a href="#home" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Home</a>
-                    <a href="#about" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">About Us</a>
-                    <a href="#how-it-works" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">How It Works</a>
-                    <a href="#faq" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">FAQ</a>
-                    <a href="#contact" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Contact</a>
+                    <a href="#home"
+                        class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Home</a>
+                    <a href="#about"
+                        class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">About Us</a>
+                    <a href="#how-it-works"
+                        class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">How It
+                        Works</a>
+                    <a href="#faq"
+                        class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">FAQ</a>
+                    <a href="#contact"
+                        class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Contact</a>
                 </div>
 
                 <div class="md:hidden">
@@ -172,19 +313,24 @@
                 </button>
             </div>
             <nav class="flex flex-col space-y-4">
-                <a href="#home" class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
+                <a href="#home"
+                    class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
                     <i class="fas fa-home mr-3"></i>Home
                 </a>
-                <a href="#about" class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
+                <a href="#about"
+                    class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
                     <i class="fas fa-info-circle mr-3"></i>About Us
                 </a>
-                <a href="#how-it-works" class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
+                <a href="#how-it-works"
+                    class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
                     <i class="fas fa-cogs mr-3"></i>How It Works
                 </a>
-                <a href="#faq" class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
+                <a href="#faq"
+                    class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
                     <i class="fas fa-question-circle mr-3"></i>FAQ
                 </a>
-                <a href="#contact" class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block transition duration-200">
+                <a href="#contact"
+                    class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block transition duration-200">
                     <i class="fas fa-envelope mr-3"></i>Contact
                 </a>
             </nav>
@@ -196,8 +342,9 @@
         <div class="container mx-auto px-4 text-center">
             <div class="max-w-4xl mx-auto fade-in-up">
                 <h1 class="text-5xl md:text-6xl font-bold mb-6">Dispose of E-Waste Responsibly</h1>
-                <p class="text-xl md:text-2xl mb-8 opacity-90">Find certified e-waste collection centers near you and help protect our environment</p>
-                
+                <p class="text-xl md:text-2xl mb-8 opacity-90">Find certified e-waste collection centers near you and
+                    help protect our environment</p>
+
                 <div class="flex flex-col md:flex-row items-center justify-center gap-4 mb-12">
                     <div class="flex items-center space-x-2 text-lg">
                         <i class="fas fa-shield-alt text-green-300"></i>
@@ -213,7 +360,8 @@
                     </div>
                 </div>
 
-                <button id="findCentersBtn" class="bg-white text-gray-800 hover:bg-gray-100 font-bold py-4 px-8 rounded-full text-xl shadow-lg transition duration-300 ease-in-out pulse-animation">
+                <button id="findCentersBtn"
+                    class="bg-white text-gray-800 hover:bg-gray-100 font-bold py-4 px-8 rounded-full text-xl shadow-lg transition duration-300 ease-in-out pulse-animation">
                     <i class="fas fa-map-marker-alt mr-2"></i>
                     Find Collection Centers Near Me
                 </button>
@@ -234,25 +382,37 @@
                     <div class="bg-gray-50 rounded-lg p-6 mb-8">
                         <div class="flex flex-col md:flex-row gap-4 items-center">
                             <div class="flex-1">
-                                <input type="text" id="searchInput" placeholder="Search by center name or location..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                <input type="text" id="searchInput" placeholder="Search by center name or location..."
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
                             </div>
                             <div class="flex gap-2">
-                                <select id="sortSelect" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                <select id="sortSelect"
+                                    class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
                                     <option value="distance">Sort by Distance</option>
                                     <option value="rating">Sort by Rating</option>
                                     <option value="name">Sort by Name</option>
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="mt-4">
                             <p class="text-sm font-semibold text-gray-700 mb-2">Filter by accepted items:</p>
                             <div class="flex flex-wrap gap-2">
-                                <button class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100" data-filter="all">All Items</button>
-                                <button class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100" data-filter="phones">Phones</button>
-                                <button class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100" data-filter="laptops">Laptops</button>
-                                <button class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100" data-filter="batteries">Batteries</button>
-                                <button class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100" data-filter="appliances">Appliances</button>
+                                <button
+                                    class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
+                                    data-filter="all">All Items</button>
+                                <button
+                                    class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
+                                    data-filter="phones">Phones</button>
+                                <button
+                                    class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
+                                    data-filter="laptops">Laptops</button>
+                                <button
+                                    class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
+                                    data-filter="batteries">Batteries</button>
+                                <button
+                                    class="filter-button px-3 py-1 text-sm border border-gray-300 rounded-full hover:bg-gray-100"
+                                    data-filter="appliances">Appliances</button>
                             </div>
                         </div>
                     </div>
@@ -265,14 +425,14 @@
                     <h2 class="text-4xl font-bold text-gray-800 mb-4">Nearby Collection Centers</h2>
                     <p id="resultsCount" class="text-gray-600"></p>
                 </div>
-                
+
                 <div id="centersResults" class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div class="col-span-full flex justify-center items-center py-12">
                         <div class="loading-spinner"></div>
                         <span class="ml-3 text-gray-600">Finding centers near you...</span>
                     </div>
                 </div>
-                
+
                 <div id="errorMessages" class="text-center mt-8">
                     <p id="locationError" class="text-red-500 hidden">
                         <i class="fas fa-exclamation-triangle mr-2"></i>
@@ -328,8 +488,8 @@
                         <h3 class="text-xl font-bold">E-Waste Connect</h3>
                     </div>
                     <p class="text-gray-300 text-sm leading-relaxed">
-                        Leading the way in responsible electronic waste disposal. 
-                        We connect you with certified collection centers to protect 
+                        Leading the way in responsible electronic waste disposal.
+                        We connect you with certified collection centers to protect
                         our environment for future generations.
                     </p>
                     <div class="flex space-x-4">
@@ -353,31 +513,36 @@
                     <h3 class="text-lg font-semibold text-green-400">Quick Links</h3>
                     <ul class="space-y-2">
                         <li>
-                            <a href="#home" class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                            <a href="#home"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
                                 <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
                                 Home
                             </a>
                         </li>
                         <li>
-                            <a href="#about" class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                            <a href="#about"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
                                 <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
                                 About Us
                             </a>
                         </li>
                         <li>
-                            <a href="#how-it-works" class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                            <a href="#how-it-works"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
                                 <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
                                 How It Works
                             </a>
                         </li>
                         <li>
-                            <a href="#faq" class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                            <a href="#faq"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
                                 <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
                                 FAQ
                             </a>
                         </li>
                         <li>
-                            <a href="#contact" class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                            <a href="#contact"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
                                 <i class="fas fa-chevron-right text-xs mr-2 text-green-400"></i>
                                 Contact
                             </a>
@@ -390,31 +555,36 @@
                     <h3 class="text-lg font-semibold text-green-400">Our Services</h3>
                     <ul class="space-y-2">
                         <li>
-                            <a href="#" class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                            <a href="#"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
                                 <i class="fas fa-mobile-alt text-xs mr-2 text-green-400"></i>
                                 Mobile Device Recycling
                             </a>
                         </li>
                         <li>
-                            <a href="#" class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                            <a href="#"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
                                 <i class="fas fa-laptop text-xs mr-2 text-green-400"></i>
                                 Computer Disposal
                             </a>
                         </li>
                         <li>
-                            <a href="#" class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                            <a href="#"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
                                 <i class="fas fa-battery-half text-xs mr-2 text-green-400"></i>
                                 Battery Collection
                             </a>
                         </li>
                         <li>
-                            <a href="#" class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                            <a href="#"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
                                 <i class="fas fa-tv text-xs mr-2 text-green-400"></i>
                                 Appliance Recycling
                             </a>
                         </li>
                         <li>
-                            <a href="#" class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
+                            <a href="#"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm flex items-center">
                                 <i class="fas fa-certificate text-xs mr-2 text-green-400"></i>
                                 Data Destruction
                             </a>
@@ -437,13 +607,15 @@
                         </div>
                         <div class="flex items-center space-x-3">
                             <i class="fas fa-phone text-green-400"></i>
-                            <a href="tel:+254700123456" class="text-gray-300 hover:text-white transition duration-200 text-sm">
+                            <a href="tel:+254700123456"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm">
                                 +254 700 123 456
                             </a>
                         </div>
                         <div class="flex items-center space-x-3">
                             <i class="fas fa-envelope text-green-400"></i>
-                            <a href="mailto:info@ewasteconnect.ke" class="text-gray-300 hover:text-white transition duration-200 text-sm">
+                            <a href="mailto:info@ewasteconnect.ke"
+                                class="text-gray-300 hover:text-white transition duration-200 text-sm">
                                 info@ewasteconnect.ke
                             </a>
                         </div>
@@ -462,15 +634,14 @@
                 <div class="max-w-2xl mx-auto text-center">
                     <h3 class="text-xl font-semibold mb-4">Stay Updated</h3>
                     <p class="text-gray-300 text-sm mb-6">
-                        Subscribe to our newsletter for the latest updates on e-waste recycling and environmental initiatives.
+                        Subscribe to our newsletter for the latest updates on e-waste recycling and environmental
+                        initiatives.
                     </p>
                     <div class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-                        <input 
-                            type="email" 
-                            placeholder="Enter your email address" 
-                            class="flex-1 px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-600 focus:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50"
-                        >
-                        <button class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200 whitespace-nowrap">
+                        <input type="email" placeholder="Enter your email address"
+                            class="flex-1 px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-600 focus:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50">
+                        <button
+                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200 whitespace-nowrap">
                             <i class="fas fa-paper-plane mr-2"></i>
                             Subscribe
                         </button>
@@ -516,11 +687,9 @@
         </div>
 
         <!-- Back to Top Button -->
-        <button 
-            id="backToTopBtn" 
+        <button id="backToTopBtn"
             class="fixed bottom-6 right-6 bg-green-600 hover:bg-green-700 text-white p-3 rounded-full shadow-lg transition duration-300 opacity-0 invisible"
-            title="Back to top"
-        >
+            title="Back to top">
             <i class="fas fa-arrow-up"></i>
         </button>
     </footer>
@@ -559,8 +728,7 @@
         });
 
         // Enhanced mock data with more realistic information
-        const mockCentersData = [
-            {
+        const mockCentersData = [{
                 id: 1,
                 name: "GreenTech Recycling Hub",
                 address: "123 Eco Avenue, Nyeri Central",
@@ -657,7 +825,7 @@
             const R = 6371; // Radius of Earth in kilometers
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = 
+            const a =
                 Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                 Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
                 Math.sin(dLon / 2) * Math.sin(dLon / 2);
@@ -670,26 +838,26 @@
             const fullStars = Math.floor(rating);
             const hasHalfStar = rating % 1 !== 0;
             let starsHtml = '';
-            
+
             for (let i = 0; i < fullStars; i++) {
                 starsHtml += '<i class="fas fa-star"></i>';
             }
-            
+
             if (hasHalfStar) {
                 starsHtml += '<i class="fas fa-star-half-alt"></i>';
             }
-            
+
             const emptyStars = 5 - Math.ceil(rating);
             for (let i = 0; i < emptyStars; i++) {
                 starsHtml += '<i class="far fa-star"></i>';
             }
-            
+
             return starsHtml;
         }
 
         // Generate accepted items tags
         function generateAcceptedItems(items) {
-            return items.map(item => 
+            return items.map(item =>
                 `<span class="item-tag">${item.charAt(0).toUpperCase() + item.slice(1)}</span>`
             ).join('');
         }
@@ -698,17 +866,17 @@
         function renderCenters(centers) {
             const centersResultsDiv = document.getElementById('centersResults');
             const resultsCount = document.getElementById('resultsCount');
-            
+
             resultsCount.textContent = `Found ${centers.length} collection center${centers.length !== 1 ? 's' : ''} near you`;
-            
+
             if (centers.length === 0) {
                 document.getElementById('noCentersFound').classList.remove('hidden');
                 centersResultsDiv.innerHTML = '';
                 return;
             }
-            
+
             document.getElementById('noCentersFound').classList.add('hidden');
-            
+
             const centersHtml = centers.map(center => `
                 <div class="bg-white rounded-xl shadow-lg p-6 card-hover fade-in-up">
                     <div class="flex justify-between items-start mb-3">
@@ -761,7 +929,7 @@
                     </div>
                 </div>
             `).join('');
-            
+
             centersResultsDiv.innerHTML = centersHtml;
         }
 
@@ -770,20 +938,20 @@
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const sortBy = document.getElementById('sortSelect').value;
             const activeFilter = document.querySelector('.filter-button.active')?.dataset.filter || 'all';
-            
+
             let filtered = allCenters.filter(center => {
-                const matchesSearch = center.name.toLowerCase().includes(searchTerm) || 
-                                    center.address.toLowerCase().includes(searchTerm);
-                
-                const matchesFilter = activeFilter === 'all' || 
-                                    center.acceptedItems.includes(activeFilter);
-                
+                const matchesSearch = center.name.toLowerCase().includes(searchTerm) ||
+                    center.address.toLowerCase().includes(searchTerm);
+
+                const matchesFilter = activeFilter === 'all' ||
+                    center.acceptedItems.includes(activeFilter);
+
                 return matchesSearch && matchesFilter;
             });
-            
+
             // Sort centers
             filtered.sort((a, b) => {
-                switch(sortBy) {
+                switch (sortBy) {
                     case 'distance':
                         return parseFloat(a.distance) - parseFloat(b.distance);
                     case 'rating':
@@ -794,7 +962,7 @@
                         return 0;
                 }
             });
-            
+
             filteredCenters = filtered;
             renderCenters(filteredCenters);
         }
@@ -803,7 +971,7 @@
         function setupSearchAndFilter() {
             document.getElementById('searchInput').addEventListener('input', filterAndSortCenters);
             document.getElementById('sortSelect').addEventListener('change', filterAndSortCenters);
-            
+
             document.querySelectorAll('.filter-button').forEach(button => {
                 button.addEventListener('click', (e) => {
                     document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
@@ -811,7 +979,7 @@
                     filterAndSortCenters();
                 });
             });
-            
+
             // Set default active filter
             document.querySelector('.filter-button[data-filter="all"]').classList.add('active');
         }
@@ -820,12 +988,12 @@
         function animateProgressBar(targetWidth, duration = 2000) {
             const progressBar = document.getElementById('progressBar');
             const progressContainer = document.getElementById('progressContainer');
-            
+
             progressContainer.classList.remove('hidden');
-            
+
             let start = 0;
             const increment = targetWidth / (duration / 16); // 60 FPS
-            
+
             const animate = () => {
                 start += increment;
                 if (start >= targetWidth) {
@@ -838,7 +1006,7 @@
                     requestAnimationFrame(animate);
                 }
             };
-            
+
             animate();
         }
 
@@ -867,89 +1035,89 @@
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     async (position) => {
-                        userLocation = {
-                            lat: position.coords.latitude,
-                            lon: position.coords.longitude
-                        };
+                            userLocation = {
+                                lat: position.coords.latitude,
+                                lon: position.coords.longitude
+                            };
 
-                        // Update progress and loading text
-                        animateProgressBar(70);
-                        centersResultsDiv.innerHTML = `
+                            // Update progress and loading text
+                            animateProgressBar(70);
+                            centersResultsDiv.innerHTML = `
                             <div class="col-span-full flex justify-center items-center py-12">
                                 <div class="loading-spinner"></div>
                                 <span class="ml-3 text-gray-600">Finding nearby centers...</span>
                             </div>
                         `;
 
-                        try {
-                            // Simulate API call delay
-                            await new Promise(resolve => setTimeout(resolve, 1500));
+                            try {
+                                // Simulate API call delay
+                                await new Promise(resolve => setTimeout(resolve, 1500));
 
-                            // Process centers with distance calculation
-                            allCenters = mockCentersData.map(center => ({
-                                ...center,
-                                distance: calculateDistance(
-                                    userLocation.lat, 
-                                    userLocation.lon, 
-                                    center.lat, 
-                                    center.lon
-                                )
-                            })).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+                                // Process centers with distance calculation
+                                allCenters = mockCentersData.map(center => ({
+                                    ...center,
+                                    distance: calculateDistance(
+                                        userLocation.lat,
+                                        userLocation.lon,
+                                        center.lat,
+                                        center.lon
+                                    )
+                                })).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
 
-                            // Complete progress
-                            animateProgressBar(100);
+                                // Complete progress
+                                animateProgressBar(100);
 
-                            // Show search and filter section
-                            searchFilterSection.classList.remove('hidden');
-                            
-                            // Setup search and filter functionality
-                            setupSearchAndFilter();
-                            
-                            // Initial render
-                            filteredCenters = [...allCenters];
-                            renderCenters(filteredCenters);
+                                // Show search and filter section
+                                searchFilterSection.classList.remove('hidden');
 
-                        } catch (error) {
-                            console.error("Error fetching e-waste centers:", error);
-                            centersResultsDiv.innerHTML = `
+                                // Setup search and filter functionality
+                                setupSearchAndFilter();
+
+                                // Initial render
+                                filteredCenters = [...allCenters];
+                                renderCenters(filteredCenters);
+
+                            } catch (error) {
+                                console.error("Error fetching e-waste centers:", error);
+                                centersResultsDiv.innerHTML = `
                                 <div class="col-span-full text-center py-12">
                                     <i class="fas fa-exclamation-triangle text-red-500 text-3xl mb-4"></i>
                                     <p class="text-red-500">Error finding centers. Please try again later.</p>
                                 </div>
                             `;
+                            }
+                        },
+                        (error) => {
+                            console.error("Geolocation error:", error);
+                            locationErrorParagraph.classList.remove('hidden');
+                            centersResultsDiv.innerHTML = '';
+
+                            // Still show centers with approximate distances for demo
+                            setTimeout(() => {
+                                allCenters = mockCentersData.map(center => ({
+                                    ...center,
+                                    distance: (Math.random() * 5 + 1).toFixed(2) // Random distance for demo
+                                })).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+
+                                searchFilterSection.classList.remove('hidden');
+                                setupSearchAndFilter();
+                                filteredCenters = [...allCenters];
+                                renderCenters(filteredCenters);
+                            }, 1000);
                         }
-                    },
-                    (error) => {
-                        console.error("Geolocation error:", error);
-                        locationErrorParagraph.classList.remove('hidden');
-                        centersResultsDiv.innerHTML = '';
-                        
-                        // Still show centers with approximate distances for demo
-                        setTimeout(() => {
-                            allCenters = mockCentersData.map(center => ({
-                                ...center,
-                                distance: (Math.random() * 5 + 1).toFixed(2) // Random distance for demo
-                            })).sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
-                            
-                            searchFilterSection.classList.remove('hidden');
-                            setupSearchAndFilter();
-                            filteredCenters = [...allCenters];
-                            renderCenters(filteredCenters);
-                        }, 1000);
-                    }
                 );
             } else {
                 locationErrorParagraph.innerText = "Geolocation is not supported by your browser.";
                 locationErrorParagraph.classList.remove('hidden');
                 centersResultsDiv.innerHTML = '';
-                
+
                 // Still show centers for demo
                 setTimeout(() => {
                     allCenters = mockCentersData.map(center => ({
                         ...center,
                         distance: (Math.random() * 5 + 1).toFixed(2)
                     }));
-                    
+
                     searchFilterSection.classList.remove('hidden');
                     setupSearchAndFilter();
                     filteredCenters = [...allCenters];
@@ -960,7 +1128,7 @@
 
         // Smooth scrolling for navigation links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
+            anchor.addEventListener('click', function(e) {
                 e.preventDefault();
                 const target = document.querySelector(this.getAttribute('href'));
                 if (target) {
@@ -1005,7 +1173,7 @@
 
         // Back to top button functionality
         const backToTopBtn = document.getElementById('backToTopBtn');
-        
+
         window.addEventListener('scroll', () => {
             if (window.pageYOffset > 300) {
                 backToTopBtn.classList.remove('opacity-0', 'invisible');
@@ -1031,27 +1199,27 @@
         newsletterBtn.addEventListener('click', (e) => {
             e.preventDefault();
             const email = newsletterInput.value.trim();
-            
+
             if (!email) {
                 alert('Please enter your email address');
                 return;
             }
-            
+
             if (!isValidEmail(email)) {
                 alert('Please enter a valid email address');
                 return;
             }
-            
+
             // Simulate newsletter signup
             newsletterBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Subscribing...';
             newsletterBtn.disabled = true;
-            
+
             setTimeout(() => {
                 newsletterBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Subscribed!';
                 newsletterBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
                 newsletterBtn.classList.add('bg-green-500');
                 newsletterInput.value = '';
-                
+
                 setTimeout(() => {
                     newsletterBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Subscribe';
                     newsletterBtn.classList.add('bg-green-600', 'hover:bg-green-700');
@@ -1091,4 +1259,5 @@
         }, 30000); // 30 second timeout
     </script>
 </body>
+
 </html>

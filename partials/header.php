@@ -152,12 +152,12 @@
             <div class="flex justify-between items-center py-4">
                 <div class="flex items-center space-x-2">
                     <i class="fas fa-recycle text-2xl text-green-600"></i>
-                    <a href="#" class="text-2xl font-bold text-gray-800">E-Waste Connect</a>
+                    <a href="index.php" class="text-2xl font-bold text-gray-800">E-Waste Connect</a>
                 </div>
 
                 <div class="hidden md:flex space-x-6">
-                    <a href="#home" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Home</a>
-                    <a href="#about" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">About Us</a>
+                    <a href="index.php" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Home</a>
+                    <a href="about.php" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">About Us</a>
                     <a href="#how-it-works" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">How It Works</a>
                     <a href="#faq" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">FAQ</a>
                     <a href="#contact" class="text-gray-600 hover:text-green-600 font-semibold transition duration-200">Contact</a>
@@ -185,10 +185,10 @@
                 </button>
             </div>
             <nav class="flex flex-col space-y-4">
-                <a href="#home" class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
+                <a href="index.php" class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
                     <i class="fas fa-home mr-3"></i>Home
                 </a>
-                <a href="#about" class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
+                <a href="about.php" class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">
                     <i class="fas fa-info-circle mr-3"></i>About Us
                 </a>
                 <a href="#how-it-works" class="text-gray-800 hover:text-green-600 font-semibold text-lg py-3 px-4 block border-b border-gray-100 transition duration-200">

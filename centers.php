@@ -6,74 +6,127 @@ require "db_connect.php";
 $userLat = -0.5333; // Latitude for Embu, Kenya
 $userLon = 37.4500; // Longitude for Embu, Kenya
 
+// Initialize variables for filtering
+$searchTerm = $_GET['search'] ?? ''; // Get search term from URL, default to empty string
+$filterCategory = $_GET['category'] ?? ''; // Get category from URL, default to empty string
+
 // Initialize an empty array to hold our collection centers
 $centers = [];
 
-// --- Fetch Collection Centers from Database ---
-// Select all necessary columns from the 'collection_centers' table
-$sql_centers = "SELECT id, name, address, lat, lon, phone, email, rating, reviews, hours, certifications, website FROM collection_centers";
-$result_centers = $conn->query($sql_centers);
+// --- Prepare SQL for Collection Centers ---
+// We'll join with 'accepted_items' if a category filter is applied
+$sql_centers = "SELECT cc.id, cc.name, cc.address, cc.lat, cc.lon, cc.phone, cc.email, cc.rating, cc.reviews, cc.hours, cc.certifications, cc.website 
+                FROM collection_centers cc";
+
+// If a category filter is provided, join with accepted_items and add a WHERE clause
+if (!empty($filterCategory)) {
+    $sql_centers .= " INNER JOIN accepted_items ai ON cc.id = ai.center_id";
+}
+
+// Add WHERE clause for search term (name or address)
+$conditions = [];
+if (!empty($searchTerm)) {
+    // Use prepared statements for search term to prevent SQL injection
+    $conditions[] = "(cc.name LIKE ? OR cc.address LIKE ?)";
+}
+
+// Add WHERE clause for category filter
+if (!empty($filterCategory)) {
+    // Use prepared statements for category to prevent SQL injection
+    $conditions[] = "ai.item_type = ?";
+}
+
+// Combine all conditions with AND
+if (!empty($conditions)) {
+    $sql_centers .= " WHERE " . implode(" AND ", $conditions);
+}
+
+// Add GROUP BY to avoid duplicate centers when joining with accepted_items
+if (!empty($filterCategory)) {
+    $sql_centers .= " GROUP BY cc.id";
+}
+
+// --- Execute SQL for Collection Centers ---
+$stmt_centers = $conn->prepare($sql_centers);
+
+// Bind parameters if conditions exist
+$paramTypes = '';
+$params = [];
+
+if (!empty($searchTerm)) {
+    $paramTypes .= 'ss';
+    $likeSearchTerm = '%' . $searchTerm . '%';
+    $params[] = $likeSearchTerm;
+    $params[] = $likeSearchTerm;
+}
+if (!empty($filterCategory)) {
+    $paramTypes .= 's';
+    $params[] = $filterCategory;
+}
+
+if (!empty($params)) {
+    $stmt_centers->bind_param($paramTypes, ...$params);
+}
+
+$stmt_centers->execute();
+$result_centers = $stmt_centers->get_result();
 
 if ($result_centers->num_rows > 0) {
-    // Loop through each row fetched from the database
     while ($row = $result_centers->fetch_assoc()) {
-        // Add an empty 'acceptedItems' array to each center to store its accepted waste types
-        $row['acceptedItems'] = [];
-        // Store centers in an associative array using their 'id' as the key for easy merging later
+        $row['acceptedItems'] = []; // Initialize for accepted items
         $centers[$row['id']] = $row;
     }
 }
+$stmt_centers->close();
+
 
 // --- Fetch Accepted Items from Database and merge with Centers ---
-// Select 'center_id' and 'item_type' from the 'accepted_items' table, ordered for consistency
+// We still fetch all accepted items for the displayed centers to list them,
+// regardless of the filter applied, so we can show all items a center accepts.
+// This is done separately to correctly populate the 'acceptedItems' array for each center.
 $sql_items = "SELECT center_id, item_type FROM accepted_items ORDER BY center_id, item_type";
 $result_items = $conn->query($sql_items);
 
 if ($result_items->num_rows > 0) {
-    // Loop through each accepted item record
     while ($row_item = $result_items->fetch_assoc()) {
         $centerId = $row_item['center_id'];
         $itemType = $row_item['item_type'];
-        // If the center exists in our $centers array, add the item type to its 'acceptedItems'
-        if (isset($centers[$centerId])) {
+        if (isset($centers[$centerId])) { // Only add if the center was already selected by the main query
             $centers[$centerId]['acceptedItems'][] = $itemType;
         }
     }
 }
 
-// After merging, convert the associative $centers array back into an indexed array for easier iteration
-$centers = array_values($centers);
+$centers = array_values($centers); // Convert associative array to indexed array
 
-// --- Function to calculate distance between two points using the Haversine formula ---
+// --- Function to calculate distance (Haversine formula) ---
 function calculateDistance($lat1, $lon1, $lat2, $lon2)
 {
-    $R = 6371; // Earth's radius in kilometers
-    $dLat = deg2rad($lat2 - $lat1); // Difference in latitudes, converted to radians
-    $dLon = deg2rad($lon2 - $lon1); // Difference in longitudes, converted to radians
+    $R = 6371; // Radius of Earth in kilometers
+    $dLat = deg2rad($lat2 - $lat1);
+    $dLon = deg2rad($lon2 - $lon1);
     $a =
         sin($dLat / 2) * sin($dLat / 2) +
         cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-        sin($dLon / 2) * sin($dLon / 2); // Haversine formula part 1
-    $c = 2 * atan2(sqrt($a), sqrt(1 - $a)); // Haversine formula part 2
-    return round($R * $c, 2); // Calculate and round the distance to 2 decimal places
+        sin($dLon / 2) * sin($dLon / 2);
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+    return round($R * $c, 2); // Round to 2 decimal places
 }
 
-// --- Loop through centers and add calculated distance ---
-foreach ($centers as &$center) { // Use '&' to modify the original array elements directly
+// --- Loop through centers and add distance ---
+foreach ($centers as &$center) {
     $centerLat = $center['lat'];
     $centerLon = $center['lon'];
     $distance = calculateDistance($userLat, $userLon, $centerLat, $centerLon);
     $center['distance'] = $distance;
 }
 
-// --- Optional: Sort centers by distance (closest first) ---
+// Optional: Sort centers by distance (closest first)
 usort($centers, function ($a, $b) {
-    return $a['distance'] <=> $b['distance']; // PHP 7+ spaceship operator for comparison
+    return $a['distance'] <=> $b['distance'];
 });
 
-// Close the database connection to free up resources
-$conn->close();
-
+$conn->close(); // Close database connection
 ?>
 
 <section class="py-12 bg-white">
@@ -85,6 +138,7 @@ $conn->close();
                         <div class="flex flex-col md:flex-row gap-4 items-center">
                             <div class="flex-1 relative">
                                 <input type="text" id="searchInput" name="search" placeholder="Search by center name or location..."
+                                    value="<?= htmlspecialchars($searchTerm) ?>"
                                     class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-200 ease-in-out placeholder-gray-400 text-gray-700">
                                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             </div>
@@ -98,21 +152,20 @@ $conn->close();
                         <div class="mt-4 pt-4 border-t border-gray-200">
                             <p class="text-base font-semibold text-gray-700 mb-3">Filter by accepted items:</p>
                             <div class="flex flex-wrap gap-3">
-                                <a href="centers.php"
-                                    class="filter-button px-4 py-2 text-sm font-medium border border-gray-300 rounded-full text-gray-700 bg-gray-50 hover:bg-green-100 hover:border-green-500 transition duration-200 ease-in-out"
+                                <a href="centers.php?search=<?= htmlspecialchars($searchTerm) ?>"
+                                    class="filter-button px-4 py-2 text-sm font-medium border border-gray-300 rounded-full text-gray-700 bg-gray-50 hover:bg-green-100 hover:border-green-500 transition duration-200 ease-in-out
+                                    <?= empty($filterCategory) ? 'bg-green-600 text-white border-green-600 hover:bg-green-700' : '' ?>"
                                     data-filter="all">All Items</a>
-                                <a href="centers.php?category=Phones"
-                                    class="filter-button px-4 py-2 text-sm font-medium border border-gray-300 rounded-full text-gray-700 bg-gray-50 hover:bg-green-100 hover:border-green-500 transition duration-200 ease-in-out"
-                                    data-filter="phones">Phones</a>
-                                <a href="centers.php?category=Laptops"
-                                    class="filter-button px-4 py-2 text-sm font-medium border border-gray-300 rounded-full text-gray-700 bg-gray-50 hover:bg-green-100 hover:border-green-500 transition duration-200 ease-in-out"
-                                    data-filter="laptops">Laptops</a>
-                                <a href="centers.php?category=Batteries"
-                                    class="filter-button px-4 py-2 text-sm font-medium border border-gray-300 rounded-full text-gray-700 bg-gray-50 hover:bg-green-100 hover:border-green-500 transition duration-200 ease-in-out"
-                                    data-filter="batteries">Batteries</a>
-                                <a href="centers.php?category=Appliances"
-                                    class="filter-button px-4 py-2 text-sm font-medium border border-gray-300 rounded-full text-gray-700 bg-gray-50 hover:bg-green-100 hover:border-green-500 transition duration-200 ease-in-out"
-                                    data-filter="appliances">Appliances</a>
+
+                                <?php
+                                $categories = ['Phones', 'Laptops', 'Batteries', 'Appliances']; // Define your categories
+                                foreach ($categories as $cat):
+                                ?>
+                                <a href="centers.php?category=<?= urlencode($cat) ?>&search=<?= htmlspecialchars($searchTerm) ?>"
+                                    class="filter-button px-4 py-2 text-sm font-medium border border-gray-300 rounded-full text-gray-700 bg-gray-50 hover:bg-green-100 hover:border-green-500 transition duration-200 ease-in-out
+                                    <?= ($filterCategory === $cat) ? 'bg-green-600 text-white border-green-600 hover:bg-green-700' : '' ?>"
+                                    data-filter="<?= strtolower($cat) ?>"><?= htmlspecialchars($cat) ?></a>
+                                <?php endforeach; ?>
                             </div>
                         </div>
                     </form>
@@ -123,12 +176,11 @@ $conn->close();
         <div id="collectionCentersList">
             <div class="text-center mb-8">
                 <h2 class="text-4xl font-bold text-gray-800 mb-4">Nearby Collection Centers</h2>
-                <p id="resultsCount" class="text-gray-600"></p>
+                <p id="resultsCount" class="text-gray-600">Showing <?= count($centers) ?> results</p>
             </div>
 
             <div id="centersResults" class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <?php if (!empty($centers)): // Check if there are any centers to display 
-                ?>
+                <?php if (!empty($centers)): ?>
                     <?php foreach ($centers as $center): ?>
                         <div class="bg-white rounded-xl shadow-lg p-6 card-hover fade-in-up">
                             <div class="flex justify-between items-start mb-3">
@@ -168,7 +220,7 @@ $conn->close();
                             </div>
 
                             <div class="flex flex-col sm:flex-row gap-2">
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=<?= htmlspecialchars($center['lat']) ?>,<?= htmlspecialchars($center['lon']) ?>"
+                                <a href="http://maps.google.com/maps?q=<?= htmlspecialchars($center['lat']) ?>,<?= htmlspecialchars($center['lon']) ?>"
                                     target="_blank"
                                     class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 px-4 rounded-lg text-sm font-semibold transition duration-200">
                                     <i class="fas fa-directions mr-1"></i>Get Directions
@@ -183,12 +235,11 @@ $conn->close();
                                 <div class="flex justify-between items-center text-xs text-gray-500">
                                     <div>
                                         <?php
-                                        // Explode certifications by comma and trim whitespace
                                         $certifications = array_map('trim', explode(',', $center['certifications']));
                                         foreach ($certifications as $cert):
-                                            if (!empty($cert)): // Ensure there's content to display
+                                            if (!empty($cert)):
                                         ?>
-                                                <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs mr-2"><?= htmlspecialchars($cert) ?></span>
+                                            <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs mr-2"><?= htmlspecialchars($cert) ?></span>
                                         <?php
                                             endif;
                                         endforeach;
@@ -203,8 +254,7 @@ $conn->close();
                             </div>
                         </div>
                     <?php endforeach; ?>
-                <?php else: // No centers found 
-                ?>
+                <?php else: ?>
                     <p class="col-span-full text-center text-gray-600">No e-waste collection centers found matching your criteria.</p>
                 <?php endif; ?>
             </div>
@@ -214,11 +264,7 @@ $conn->close();
                     <i class="fas fa-exclamation-triangle mr-2"></i>
                     Unable to retrieve your location. Please ensure location services are enabled.
                 </p>
-                <p id="noCentersFound" class="text-gray-600 hidden">
-                    <i class="fas fa-search mr-2"></i>
-                    No e-waste collection centers found matching your criteria.
-                </p>
-            </div>
+                </div>
         </div>
     </div>
 </section>

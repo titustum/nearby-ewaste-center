@@ -2,107 +2,80 @@
 require "partials/header.php";
 require "db_connect.php";
 
-// In a real application, you'd get this from geolocation APIs or user input.
-$userLat = -0.5333; // Latitude for Embu
-$userLon = 37.4500; // Longitude for Embu
+// Set a default user location for demonstration. In a real app, this would come from geolocation.
+$userLat = -0.5333; // Latitude for Embu, Kenya
+$userLon = 37.4500; // Longitude for Embu, Kenya
+
+// Initialize an empty array to hold our collection centers
+$centers = [];
 
 // --- Fetch Collection Centers from Database ---
-$centers = [];
+// Select all necessary columns from the 'collection_centers' table
 $sql_centers = "SELECT id, name, address, lat, lon, phone, email, rating, reviews, hours, certifications, website FROM collection_centers";
 $result_centers = $conn->query($sql_centers);
 
 if ($result_centers->num_rows > 0) {
+    // Loop through each row fetched from the database
     while ($row = $result_centers->fetch_assoc()) {
-        // Initialize 'acceptedItems' as an empty array for each center
+        // Add an empty 'acceptedItems' array to each center to store its accepted waste types
         $row['acceptedItems'] = [];
-        $centers[$row['id']] = $row; // Store by ID for easier merging with accepted items
+        // Store centers in an associative array using their 'id' as the key for easy merging later
+        $centers[$row['id']] = $row;
     }
 }
 
 // --- Fetch Accepted Items from Database and merge with Centers ---
+// Select 'center_id' and 'item_type' from the 'accepted_items' table, ordered for consistency
 $sql_items = "SELECT center_id, item_type FROM accepted_items ORDER BY center_id, item_type";
 $result_items = $conn->query($sql_items);
 
 if ($result_items->num_rows > 0) {
+    // Loop through each accepted item record
     while ($row_item = $result_items->fetch_assoc()) {
         $centerId = $row_item['center_id'];
         $itemType = $row_item['item_type'];
-        // Add item type to the correct center's acceptedItems array
+        // If the center exists in our $centers array, add the item type to its 'acceptedItems'
         if (isset($centers[$centerId])) {
             $centers[$centerId]['acceptedItems'][] = $itemType;
         }
     }
 }
 
-// Convert associative array back to indexed array if preferred for iteration
+// After merging, convert the associative $centers array back into an indexed array for easier iteration
 $centers = array_values($centers);
 
-// --- Function to calculate distance (Haversine formula) ---
+// --- Function to calculate distance between two points using the Haversine formula ---
 function calculateDistance($lat1, $lon1, $lat2, $lon2)
 {
-    $R = 6371; // Radius of Earth in kilometers
-    $dLat = deg2rad($lat2 - $lat1);
-    $dLon = deg2rad($lon2 - $lon1);
+    $R = 6371; // Earth's radius in kilometers
+    $dLat = deg2rad($lat2 - $lat1); // Difference in latitudes, converted to radians
+    $dLon = deg2rad($lon2 - $lon1); // Difference in longitudes, converted to radians
     $a =
         sin($dLat / 2) * sin($dLat / 2) +
         cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-        sin($dLon / 2) * sin($dLon / 2);
-    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-    return round($R * $c, 2); // Round to 2 decimal places
+        sin($dLon / 2) * sin($dLon / 2); // Haversine formula part 1
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a)); // Haversine formula part 2
+    return round($R * $c, 2); // Calculate and round the distance to 2 decimal places
 }
 
-// --- Loop through centers and add distance ---
-foreach ($centers as &$center) { // Use & to modify the original array elements
+// --- Loop through centers and add calculated distance ---
+foreach ($centers as &$center) { // Use '&' to modify the original array elements directly
     $centerLat = $center['lat'];
     $centerLon = $center['lon'];
     $distance = calculateDistance($userLat, $userLon, $centerLat, $centerLon);
     $center['distance'] = $distance;
 }
 
-// Optional: Sort centers by distance (closest first)
+// --- Optional: Sort centers by distance (closest first) ---
 usort($centers, function ($a, $b) {
-    return $a['distance'] <=> $b['distance'];
+    return $a['distance'] <=> $b['distance']; // PHP 7+ spaceship operator for comparison
 });
 
-// Close database connection
+// Close the database connection to free up resources
 $conn->close();
 
 ?>
 
-
-<!-- Hero Section -->
-<section id="home" class="gradient-bg text-white py-20">
-    <div class="container mx-auto px-4 text-center">
-        <div class="max-w-4xl mx-auto fade-in-up">
-            <h1 class="text-5xl md:text-6xl font-bold mb-6">Dispose of E-Waste Responsibly</h1>
-            <p class="text-xl md:text-2xl mb-8 opacity-90">Find certified e-waste collection centers near you and help protect our environment</p>
-
-            <div class="flex flex-col md:flex-row items-center justify-center gap-4 mb-12">
-                <div class="flex items-center space-x-2 text-lg">
-                    <i class="fas fa-shield-alt text-green-300"></i>
-                    <span>Certified Centers</span>
-                </div>
-                <div class="flex items-center space-x-2 text-lg">
-                    <i class="fas fa-leaf text-green-300"></i>
-                    <span>Eco-Friendly</span>
-                </div>
-                <div class="flex items-center space-x-2 text-lg">
-                    <i class="fas fa-clock text-green-300"></i>
-                    <span>Reliable Hours</span>
-                </div>
-            </div>
-
-            <a href="#searchFilterSection" class="inline-block bg-white text-gray-800 hover:bg-gray-100 font-bold py-4 px-8 rounded-full text-xl shadow-lg transition duration-300 ease-in-out pulse-animation">
-                <i class="fas fa-map-marker-alt mr-2"></i>
-                Find Collection Centers Near Me
-            </a>
-        </div>
-    </div>
-</section>
-
-
-
-<!-- Search and Filter Section -->
 <section class="py-12 bg-white">
     <div class="container mx-auto px-4">
         <div id="searchFilterSection" class="fade-in-up">
@@ -147,7 +120,6 @@ $conn->close();
             </div>
         </div>
 
-        <!-- Results Section -->
         <div id="collectionCentersList">
             <div class="text-center mb-8">
                 <h2 class="text-4xl font-bold text-gray-800 mb-4">Nearby Collection Centers</h2>
@@ -155,79 +127,86 @@ $conn->close();
             </div>
 
             <div id="centersResults" class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-
-                <?php foreach ($centers as $center): ?>
-
-                    <div class="bg-white rounded-xl shadow-lg p-6 card-hover fade-in-up">
-                        <div class="flex justify-between items-start mb-3">
-                            <h3 class="text-xl font-bold text-gray-800"><?= $center['name'] ?></h3>
-                            <div class="flex items-center text-sm">
-                                <div class="rating-stars mr-1">
-                                    <?php for ($i = 0; $i < 5; $i++): ?>
-                                        <i class="fas fa-star <?= $i < round($center['rating']) ? 'text-yellow-500' : 'text-gray-300' ?>"></i>
-                                    <?php endfor; ?>
+                <?php if (!empty($centers)): // Check if there are any centers to display 
+                ?>
+                    <?php foreach ($centers as $center): ?>
+                        <div class="bg-white rounded-xl shadow-lg p-6 card-hover fade-in-up">
+                            <div class="flex justify-between items-start mb-3">
+                                <h3 class="text-xl font-bold text-gray-800"><?= htmlspecialchars($center['name']) ?></h3>
+                                <div class="flex items-center text-sm">
+                                    <div class="rating-stars mr-1">
+                                        <?php for ($i = 0; $i < 5; $i++): ?>
+                                            <i class="fas fa-star <?= $i < round($center['rating']) ? 'text-yellow-500' : 'text-gray-300' ?>"></i>
+                                        <?php endfor; ?>
+                                    </div>
+                                    <span class="text-gray-600">(<?= htmlspecialchars($center['reviews']) ?>)</span>
                                 </div>
-                                <span class="text-gray-600">(<?= $center['reviews'] ?>)</span>
+                            </div>
+
+                            <div class="space-y-2 mb-4">
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-map-marker-alt mr-2 text-green-600"></i>
+                                    <span class="text-sm"><?= htmlspecialchars($center['address']) ?></span>
+                                </div>
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-route mr-2 text-blue-600"></i>
+                                    <span class="text-sm font-semibold"><?= htmlspecialchars($center['distance']) ?> km away</span>
+                                </div>
+                                <div class="flex items-center text-gray-600">
+                                    <i class="fas fa-clock mr-2 text-purple-600"></i>
+                                    <span class="text-sm"><?= htmlspecialchars($center['hours']) ?></span>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <p class="text-sm font-semibold text-gray-700 mb-2">Accepts:</p>
+                                <div class="accepted-items">
+                                    <?php foreach ($center['acceptedItems'] as $item): ?>
+                                        <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs mr-2"><?= htmlspecialchars($item) ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=<?= htmlspecialchars($center['lat']) ?>,<?= htmlspecialchars($center['lon']) ?>"
+                                    target="_blank"
+                                    class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 px-4 rounded-lg text-sm font-semibold transition duration-200">
+                                    <i class="fas fa-directions mr-1"></i>Get Directions
+                                </a>
+                                <a href="tel:<?= htmlspecialchars($center['phone']) ?>"
+                                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-2 px-4 rounded-lg text-sm font-semibold transition duration-200">
+                                    <i class="fas fa-phone mr-1"></i>Call Now
+                                </a>
+                            </div>
+
+                            <div class="mt-3 pt-3 border-t border-gray-100">
+                                <div class="flex justify-between items-center text-xs text-gray-500">
+                                    <div>
+                                        <?php
+                                        // Explode certifications by comma and trim whitespace
+                                        $certifications = array_map('trim', explode(',', $center['certifications']));
+                                        foreach ($certifications as $cert):
+                                            if (!empty($cert)): // Ensure there's content to display
+                                        ?>
+                                                <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs mr-2"><?= htmlspecialchars($cert) ?></span>
+                                        <?php
+                                            endif;
+                                        endforeach;
+                                        ?>
+                                    </div>
+                                    <?php if (!empty($center['website'])): ?>
+                                        <a href="http://<?= htmlspecialchars($center['website']) ?>" target="_blank" class="text-blue-600 hover:underline">
+                                            <i class="fas fa-external-link-alt"></i> Website
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
-
-                        <div class="space-y-2 mb-4">
-                            <div class="flex items-center text-gray-600">
-                                <i class="fas fa-map-marker-alt mr-2 text-green-600"></i>
-                                <span class="text-sm"><?= $center['address'] ?></span>
-                            </div>
-                            <div class="flex items-center text-gray-600">
-                                <i class="fas fa-route mr-2 text-blue-600"></i>
-                                <span class="text-sm font-semibold"><?= $center['distance'] ?> km away</span>
-                            </div>
-                            <div class="flex items-center text-gray-600">
-                                <i class="fas fa-clock mr-2 text-purple-600"></i>
-                                <span class="text-sm"><?= $center['hours'] ?></span>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <p class="text-sm font-semibold text-gray-700 mb-2">Accepts:</p>
-                            <div class="accepted-items">
-                                <?php foreach ($center['acceptedItems'] as $item): ?>
-                                    <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs mr-2"><?= $item ?></span>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <a href="https://www.google.com/maps/dir/?api=1&destination=<?= $center['lat'] ?>,<?= $center['lon'] ?>}"
-                                target="_blank"
-                                class="flex-1 bg-green-600 hover:bg-green-700 text-white text-center py-2 px-4 rounded-lg text-sm font-semibold transition duration-200">
-                                <i class="fas fa-directions mr-1"></i>Get Directions
-                            </a>
-                            <a href="tel:<?= $center['phone'] ?>"
-                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-center py-2 px-4 rounded-lg text-sm font-semibold transition duration-200">
-                                <i class="fas fa-phone mr-1"></i>Call Now
-                            </a>
-                        </div>
-
-                        <div class="mt-3 pt-3 border-t border-gray-100">
-                            <div class="flex justify-between items-center text-xs text-gray-500">
-                                <span>
-
-                                    <!-- loop certifications -->
-                                    <?php foreach (explode(',', $center['certifications']) as $item): ?>
-                                        <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs mr-2"><?= $item ?></span>
-                                    <?php endforeach ?>
-
-                                    <a href="http://<?php echo $center['website'] ?>" target="_blank" class="text-blue-600 hover:underline">
-                                        <i class="fas fa-external-link-alt"></i>
-                                    </a>
-                            </div>
-                        </div>
-                    </div>
-
-
-                <?php endforeach ?>
-
-
+                    <?php endforeach; ?>
+                <?php else: // No centers found 
+                ?>
+                    <p class="col-span-full text-center text-gray-600">No e-waste collection centers found matching your criteria.</p>
+                <?php endif; ?>
             </div>
 
             <div id="errorMessages" class="text-center mt-8">
@@ -244,9 +223,6 @@ $conn->close();
     </div>
 </section>
 
-
-
-<!-- Statistics Section -->
 <section class="py-16 bg-gray-100">
     <div class="container mx-auto px-4 text-center">
         <h2 class="text-3xl font-bold text-gray-800 mb-12">Our Impact</h2>
@@ -275,7 +251,5 @@ $conn->close();
         </div>
     </div>
 </section>
-
-
 
 <?php require "partials/footer.php"; ?>

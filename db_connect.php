@@ -1,19 +1,18 @@
 <?php
 // db_connect.php
 
-// Database configuration
-define('DB_SERVER', 'localhost'); // database host
-define('DB_USERNAME', 'root'); // MySQL username
-define('DB_PASSWORD', ''); // MySQL password
-define('DB_NAME', 'ewaste_connect'); //  database name
+$servername = "localhost";
+$username = "root"; // Your MySQL username
+$password = "";     // Your MySQL password
+$dbname = "ewaste_connect"; // Your database name
 
-/* Attempt to connect to MySQL database */
-$link = mysqli_connect(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
 
 // Check connection
-if ($link === false) {
-    die("ERROR: Could not connect. " . mysqli_connect_error());
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
 }
 
-// Set character set to UTF-8 for proper encoding
-mysqli_set_charset($link, "utf8mb4");
+// Set charset to utf8mb4 for proper character handling
+$conn->set_charset("utf8mb4");
